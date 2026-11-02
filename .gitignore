@@ -1,0 +1,28 @@
+# build outputs (bitstream, reports, simulator binaries, frame dumps)
+build/
+obj_dir/
+
+# Vivado clutter
+.Xil/
+*.jou
+*.log
+*.str
+*.backup.*
+vivado_pid*
+usage_statistics_webtalk.*
+webtalk*
+*.cache/
+*.runs/
+*.sim/
+*.hw/
+*.ip_user_files/
+*.gen/
+
+# OS / editors / Python
+.DS_Store
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+
+# Note: mem/*.mem and mem/*.coe ARE committed, so Vivado builds work without Python.
