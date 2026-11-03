@@ -25,8 +25,8 @@ module tb_game_ctrl;
   unit_t [MAX_UNITS-1:0] units;
 
   /* verilator lint_off PINCONNECTEMPTY */
-  terrain_rom #(.INIT_FILE(MAP_FILE)) u_rom (
-    .addr_a(terr_addr), .data_a(terr_data), .addr_b('0), .data_b());
+  terrain_memory #(.world_map_file(MAP_FILE)) u_terrain (
+    .game_addr(terr_addr), .game_data(terr_data), .draw_addr('0), .draw_data());
   /* verilator lint_on PINCONNECTEMPTY */
 
   game_ctrl dut (.clk(clk), .rst(rst), .press(press), .terr_addr(terr_addr),

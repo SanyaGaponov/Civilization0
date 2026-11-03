@@ -21,7 +21,7 @@ SRC := src/game_pkg.sv \
        src/video/vga_out.sv \
        src/video/drawcon.sv \
        src/io/buttons.sv \
-       src/game/terrain_rom.sv \
+       src/game/terrain_memory.sv \
        src/game/game_ctrl.sv \
        src/game_top.sv
 
@@ -58,7 +58,7 @@ tb_game_ctrl: mem
 	@mkdir -p $(BUILD)
 	$(VERILATOR) $(TBFLAGS) --top-module tb_game_ctrl -Mdir $(BUILD)/tb_game_ctrl -o tb \
 	    -GMAP_FILE='"$(abspath mem/$(MAP).mem)"' \
-	    src/game_pkg.sv src/game/terrain_rom.sv src/game/game_ctrl.sv sim/tb_game_ctrl.sv
+	    src/game_pkg.sv src/game/terrain_memory.sv src/game/game_ctrl.sv sim/tb_game_ctrl.sv
 	$(BUILD)/tb_game_ctrl/tb
 
 sim: mem

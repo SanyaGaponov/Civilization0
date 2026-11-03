@@ -38,7 +38,8 @@ src/                    synthesizable RTL code (becomes FPGA hardware)
   video/drawcon.sv      colour of each pixel (combinational): bg = terrain,
                         blk = city / unit / cursor
   io/buttons.sv         button synchronizer + debounce -> 1-clock press pulses
-  game/terrain_rom.sv   64x32 terrain map (2 instant read ports), from mem/map0.mem
+  game/terrain_memory.sv
+                        64x32 terrain map (2 instant reads), from mem/map0.mem
   game/game_ctrl.sv     game rules: cursor, units, turns, movement
 constraints/nexys_a7.xdc  pin assignments
 maps/map0.txt           the map, drawn as ASCII (edit this!)

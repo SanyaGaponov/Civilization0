@@ -5,7 +5,7 @@ module drawcon
   // current pixel, from vga_out
   input  logic [10:0]           draw_x,      // 0..1279
   input  logic [9:0]            draw_y,      // 0..799
-  // terrain map, port B
+  // terrain map (draw read of terrain_memory)
   output logic [MAP_ADDR_W-1:0] map_addr,
   input  logic [TERRAIN_W-1:0]  map_data,
   // game state, from game_ctrl

@@ -76,14 +76,14 @@ module game_top
     .press(press)
   );
 
-  // ---- terrain map: port A for game logic, port B for drawcon ----
+  // ---- terrain map: one read for game logic, one for drawcon ----
   logic [MAP_ADDR_W-1:0] terr_addr, map_addr;
   logic [TERRAIN_W-1:0]  terr_data, map_data;
-  terrain_rom #(.INIT_FILE(MAP_FILE)) u_terrain (
-    .addr_a(terr_addr),
-    .data_a(terr_data),
-    .addr_b(map_addr),
-    .data_b(map_data)
+  terrain_memory #(.world_map_file(MAP_FILE)) u_terrain (
+    .game_addr(terr_addr),
+    .game_data(terr_data),
+    .draw_addr(map_addr),
+    .draw_data(map_data)
   );
 
   // ---- game logic ----

@@ -29,7 +29,7 @@ read_verilog -sv [list \
   $root/src/video/vga_out.sv \
   $root/src/video/drawcon.sv \
   $root/src/io/buttons.sv \
-  $root/src/game/terrain_rom.sv \
+  $root/src/game/terrain_memory.sv \
   $root/src/game/game_ctrl.sv \
   $root/src/game_top.sv \
 ]

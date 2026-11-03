@@ -5,7 +5,7 @@ module game_ctrl
   input  logic                    clk,
   input  logic                    rst,
   input  logic [NUM_BTN-1:0]      press,       // 1-clock pulses from buttons.sv
-  // terrain ROM, port A (read only, combinational)
+  // terrain map (game read of terrain_memory, combinational)
   output logic [MAP_ADDR_W-1:0]   terr_addr,
   input  logic [TERRAIN_W-1:0]    terr_data,
   // game state, read by the renderer
@@ -45,7 +45,7 @@ module game_ctrl
     end
   end
 
-  // terrain at the tile we would step onto (ROM port A, no delay)
+  // terrain at the tile we would step onto (no delay)
   assign terr_addr = {step_y, step_x};
 
   // ---- questions about the board (combinational) ------------------------
