@@ -45,12 +45,18 @@ module clk_gen
   BUFG u_bufg_pix (.I(clk_pix_unbuf), .O(clk_pix));
 `endif
 
-  // Reset synchronizer: the button and 'locked' are not aligned to clk_pix.
-  // Passing them through 2 flip-flops avoids metastability. Reset is held
-  // while the button is pressed or the clock is not yet stable.
-  logic [1:0] rst_sync = 2'b11;
-  always_ff @(posedge clk_pix) begin
-    rst_sync <= {rst_sync[0], ~(rst_btn_n & locked)};
+  // Reset synchronizer ("asynchronous assert, synchronous release").
+  // Reset turns ON immediately whenever the button is pressed or the clock
+  // is not yet stable (locked = 0), including at power-up. It turns OFF
+  // only after 2 clean clock edges, so every flip-flop leaves reset on the
+  // same edge (no metastability from the button, which is not aligned to clk_pix).
+  logic       rst_in_n;
+  logic [1:0] rst_sync;
+  assign rst_in_n = rst_btn_n & locked;
+
+  always_ff @(posedge clk_pix or negedge rst_in_n) begin
+    if (!rst_in_n) rst_sync <= 2'b11;
+    else           rst_sync <= {rst_sync[0], 1'b0};
   end
   assign rst_pix = rst_sync[1];
 

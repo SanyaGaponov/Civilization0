@@ -14,8 +14,14 @@
 module tb_vga_out;
   import game_pkg::*;
 
-  logic clk = 1'b0;
-  logic rst = 1'b1;
+  // Start values are set in initial blocks, not in the declarations
+  // (newer Verilator warns about declaration initializers on variables
+  // that processes also write, warning PROCASSINIT).
+  logic clk, rst;
+  initial begin
+    clk = 1'b0;
+    rst = 1'b1;
+  end
   always #5 clk = ~clk;
 
   logic              hsync, vsync, de, frame_end;
@@ -25,11 +31,18 @@ module tb_vga_out;
   vga_out dut (.clk(clk), .rst(rst), .hsync(hsync), .vsync(vsync), .de(de),
                .x(x), .y(y), .frame_end(frame_end));
 
-  int cyc = 0, errors = 0, frames = 0;
-  int last_hs_edge = -1, last_vs_edge = -1;
-  int hs_width = 0, vs_width = 0;
-  int de_run = 0, active_lines = 0, frame_ends = 0;
-  logic hsync_q = 1'b0, vsync_q = 1'b0, de_q = 1'b0;
+  int cyc, errors, frames;
+  int last_hs_edge, last_vs_edge;
+  int hs_width, vs_width;
+  int de_run, active_lines, frame_ends;
+  logic hsync_q, vsync_q, de_q;
+  initial begin
+    cyc = 0; errors = 0; frames = 0;
+    last_hs_edge = -1; last_vs_edge = -1;
+    hs_width = 0; vs_width = 0;
+    de_run = 0; active_lines = 0; frame_ends = 0;
+    hsync_q = 1'b0; vsync_q = 1'b0; de_q = 1'b0;
+  end
 
   task automatic check(input bit ok, input string msg);
     if (!ok) begin
