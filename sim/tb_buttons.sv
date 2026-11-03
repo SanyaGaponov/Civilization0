@@ -1,5 +1,4 @@
-// tb_buttons.sv - checks debouncing: a bouncy press must give exactly ONE pulse,
-// a bouncy release none, and a short glitch nothing at all.
+// Testbench: debouncing.
 `timescale 1ns/1ps
 
 // Testbench style: blocking "=" in processes is intentional.

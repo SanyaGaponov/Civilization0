@@ -1,26 +1,17 @@
 #!/usr/bin/env python3
-"""gen_map.py - convert a hand-drawn ASCII map into FPGA memory files.
+"""Convert an ASCII map into memory files (.mem, .coe, preview .png).
 
-    python3 scripts/gen_map.py maps/map0.txt mem/map0
-
-writes
-    mem/map0.mem          one hex digit per tile, for $readmemh (used by our RTL)
-    mem/map0.coe          same data for Vivado's Block Memory Generator (course README)
-    mem/map0_preview.png  quick look at the whole stored map, 8x8 pixels per tile;
-                          a red border marks the part visible on screen
-
-Memory layout: MAP_W x MAP_H = 64 x 32 tiles, address = y * 64 + x.
-Tiles outside the drawn area are filled with ocean.
+Usage: gen_map.py <map.txt> <output prefix>
 """
 import os
 import sys
 
 from pngio import write_png
 
-MAP_W, MAP_H = 64, 32          # must match MAP_W/MAP_H in src/game_pkg.sv
+MAP_W, MAP_H = 64, 32          # stored map size (must match the hardware)
 VISIBLE_W, VISIBLE_H = 40, 25  # tiles on screen at 1280x800 (marked red in the preview)
 
-# char -> (terrain code, 12-bit colour). Keep in sync with game_pkg.sv / drawcon.sv
+# char -> (terrain code, 12-bit colour); must match the hardware terrain codes
 LEGEND = {
     "~": (0x0, 0x15A),  # ocean
     ".": (0x1, 0x4A3),  # grass

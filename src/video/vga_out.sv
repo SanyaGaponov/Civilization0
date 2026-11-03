@@ -1,63 +1,64 @@
-// vga_out.sv - VGA timing generator (slides 7-8).
-//
-// Two counters: hcnt counts every pixel clock, vcnt counts once per line.
-// Comparators on the counters produce hsync, vsync and the "visible" flag.
-// All outputs are registered, so they are aligned with each other and
-// arrive 1 clock after the counter value they were computed from.
-module vga_out
-  import game_pkg::*;
-(
-  input  logic              clk,
-  input  logic              rst,
-  output logic              hsync,
-  output logic              vsync,
-  output logic              de,         // data enable: 1 inside the visible area
-  output logic [HCNT_W-1:0] x,          // pixel column, valid when de = 1
-  output logic [VCNT_W-1:0] y,          // pixel row,    valid when de = 1
-  output logic              frame_end   // 1-clock pulse right after the last visible line
+// VGA controller: counters, sync pulses, blanking, current pixel position.
+module vga_out (
+  input  logic        clk,      // pixel clock, 83.46 MHz
+  input  logic        rst,
+  input  logic [3:0]  r,
+  input  logic [3:0]  g,
+  input  logic [3:0]  b,
+  output logic [3:0]  pix_r,
+  output logic [3:0]  pix_g,
+  output logic [3:0]  pix_b,
+  output logic        hsync,
+  output logic        vsync,
+  output logic [10:0] curr_x,
+  output logic [9:0]  curr_y
 );
 
-  localparam int H_START = H_SYNC + H_BP;   // first visible column (336 / 144)
-  localparam int V_START = V_SYNC + V_BP;   // first visible line   (27 / 35)
+  // ---- screen timing: 1280x800 at 60 Hz -------------------------------------
+  //   hcount: 0..135 sync | 136..335 back porch | 336..1615 visible | 1616..1679 front porch
+  //   vcount: 0..2   sync | 3..26    back porch | 27..826   visible | 827        front porch
+  localparam logic [10:0] H_SYNC   = 11'd136;
+  localparam logic [10:0] H_BP     = 11'd200;
+  localparam logic [10:0] H_ACTIVE = 11'd1280;
+  localparam logic [10:0] H_FP     = 11'd64;
+  localparam logic [10:0] H_TOTAL  = H_SYNC + H_BP + H_ACTIVE + H_FP;   // 1680
+  localparam logic [10:0] H_START  = H_SYNC + H_BP;                     // 336
 
-  logic [HCNT_W-1:0] hcnt;
-  logic [VCNT_W-1:0] vcnt;
+  localparam logic [9:0]  V_SYNC   = 10'd3;
+  localparam logic [9:0]  V_BP     = 10'd24;
+  localparam logic [9:0]  V_ACTIVE = 10'd800;
+  localparam logic [9:0]  V_FP     = 10'd1;
+  localparam logic [9:0]  V_TOTAL  = V_SYNC + V_BP + V_ACTIVE + V_FP;   // 828
+  localparam logic [9:0]  V_START  = V_SYNC + V_BP;                     // 27
 
-  // --- counters ---------------------------------------------------------
+  logic [10:0] hcount;
+  logic [9:0]  vcount;
+
+  // ---- counters ------------------------------------------------------------
   always_ff @(posedge clk) begin
     if (rst) begin
-      hcnt <= '0;
-      vcnt <= '0;
-    end else if (hcnt == HCNT_W'(H_TOTAL - 1)) begin
-      hcnt <= '0;
-      vcnt <= (vcnt == VCNT_W'(V_TOTAL - 1)) ? '0 : vcnt + 1'b1;
+      hcount <= '0;
+      vcount <= '0;
+    end else if (hcount == H_TOTAL - 1'b1) begin
+      hcount <= '0;
+      vcount <= (vcount == V_TOTAL - 1'b1) ? '0 : vcount + 1'b1;
     end else begin
-      hcnt <= hcnt + 1'b1;
+      hcount <= hcount + 1'b1;
     end
   end
 
-  // --- comparators (combinational) -------------------------------------
-  logic h_vis, v_vis;
-  assign h_vis = (hcnt >= HCNT_W'(H_START)) && (hcnt < HCNT_W'(H_START + H_ACTIVE));
-  assign v_vis = (vcnt >= VCNT_W'(V_START)) && (vcnt < VCNT_W'(V_START + V_ACTIVE));
+  assign hsync = (hcount < H_SYNC) ? 1'b0 : 1'b1;
+  assign vsync = (vcount < V_SYNC) ? 1'b1 : 1'b0;
 
-  // --- registered outputs ------------------------------------------------
-  always_ff @(posedge clk) begin
-    if (rst) begin
-      hsync     <= ~H_POL;
-      vsync     <= ~V_POL;
-      de        <= 1'b0;
-      x         <= '0;
-      y         <= '0;
-      frame_end <= 1'b0;
-    end else begin
-      hsync     <= (hcnt < HCNT_W'(H_SYNC)) ? H_POL : ~H_POL;
-      vsync     <= (vcnt < VCNT_W'(V_SYNC)) ? V_POL : ~V_POL;
-      de        <= h_vis && v_vis;
-      x         <= hcnt - HCNT_W'(H_START);   // garbage outside visible area; use de
-      y         <= vcnt - VCNT_W'(V_START);
-      frame_end <= (hcnt == '0) && (vcnt == VCNT_W'(V_START + V_ACTIVE));
-    end
-  end
+  logic visible;
+  assign visible = (hcount >= H_START) && (hcount < H_START + H_ACTIVE) &&
+                   (vcount >= V_START) && (vcount < V_START + V_ACTIVE);
+
+  assign curr_x = hcount - H_START;
+  assign curr_y = vcount - V_START;
+
+  assign pix_r = visible ? r : 4'h0;
+  assign pix_g = visible ? g : 4'h0;
+  assign pix_b = visible ? b : 4'h0;
 
 endmodule

@@ -1,29 +1,11 @@
-// game_ctrl.sv - game state and rules: cursor, units, turns, movement.
-//
-// Controls (one press = one action):
-//   no unit selected : arrows move the cursor (stops at the map edge)
-//                      centre on your unit (with moves left) -> select it
-//                      centre on an empty tile (no unit, no city) -> end turn
-//   unit selected    : arrows move the unit one tile, if allowed
-//                      centre -> deselect
-// A move is allowed if the target is on the map, passable terrain (not ocean
-// or mountain), has no unit (fighting comes later) and is not the enemy city.
-// Each move costs 1 point; at 0 the unit is deselected, and when none of the
-// player's units have points left the turn passes automatically.
-//
-// State machine:
-//   S_IDLE       wait for a button press
-//   S_WAIT       terrain ROM is reading the target tile (1 clock latency)
-//   S_CHECK      apply the movement rules, move the unit if allowed
-//   S_AFTER_MOVE deselect / auto end turn when points run out
-//   S_END_TURN   switch player, refill points, jump the cursor
+// Game rules: cursor, unit selection, movement and turns.
 module game_ctrl
   import game_pkg::*;
 (
   input  logic                    clk,
   input  logic                    rst,
   input  logic [NUM_BTN-1:0]      press,       // 1-clock pulses from buttons.sv
-  // terrain ROM, port A (read only)
+  // terrain ROM, port A (read only, combinational)
   output logic [MAP_ADDR_W-1:0]   terr_addr,
   input  logic [TERRAIN_W-1:0]    terr_data,
   // game state, read by the renderer
@@ -35,13 +17,10 @@ module game_ctrl
   output unit_t [MAX_UNITS-1:0]   units
 );
 
-  typedef enum logic [2:0] { S_IDLE, S_WAIT, S_CHECK, S_AFTER_MOVE, S_END_TURN } state_e;
-  localparam unit_t START0 = start_unit(0);    // Player 1's first unit (cursor starts there)
+  typedef enum logic { S_PLAY, S_END_TURN } state_e;
   state_e state;
 
-  tile_x_t tgt_x;   // tile the selected unit wants to move to
-  tile_y_t tgt_y;
-  assign terr_addr = {tgt_y, tgt_x};
+  localparam unit_t START0 = start_unit(0);    // Player 1's first unit (cursor starts there)
 
   // ---- one step from the cursor (or from the selected unit) -------------
   tile_x_t base_x, step_x;
@@ -66,24 +45,32 @@ module game_ctrl
     end
   end
 
+  // terrain at the tile we would step onto (ROM port A, no delay)
+  assign terr_addr = {step_y, step_x};
+
   // ---- questions about the board (combinational) ------------------------
-  logic [UNIT_IDX_W:0] at_cursor, at_target;   // {found, index}
+  logic [UNIT_IDX_W:0] at_cursor, at_step;   // {found, index}
   assign at_cursor = find_unit(units, cursor_x, cursor_y);
-  assign at_target = find_unit(units, tgt_x, tgt_y);
+  assign at_step   = find_unit(units, step_x, step_y);
 
   logic cursor_on_city;
   assign cursor_on_city = (cursor_x == CITY0_X && cursor_y == CITY0_Y) ||
                           (cursor_x == CITY1_X && cursor_y == CITY1_Y);
 
-  logic target_is_enemy_city;
-  assign target_is_enemy_city = (tgt_x == city_x(~cur_player)) && (tgt_y == city_y(~cur_player));
+  logic step_is_enemy_city;
+  assign step_is_enemy_city = (step_x == city_x(~cur_player)) && (step_y == city_y(~cur_player));
 
-  logic own_moves_left;   // does the current player have any unit with points left?
+  logic can_move;   // the selected unit may step onto (step_x, step_y)
+  assign can_move = in_bounds && passable(terr_data) && !at_step[UNIT_IDX_W] && !step_is_enemy_city;
+
+  // Do any of the current player's OTHER units (not the selected one) have points left?
+  logic others_have_moves;
   always_comb begin
-    own_moves_left = 1'b0;
+    others_have_moves = 1'b0;
     for (int i = 0; i < MAX_UNITS; i++)
-      if (units[i].valid && units[i].owner == cur_player && units[i].moves != '0)
-        own_moves_left = 1'b1;
+      if (units[i].valid && units[i].owner == cur_player && units[i].moves != '0 &&
+          !(sel_valid && UNIT_IDX_W'(i) == sel_idx))
+        others_have_moves = 1'b1;
   end
 
   // Where the cursor goes when the next player starts: their first unit, else their city.
@@ -102,19 +89,18 @@ module game_ctrl
   // ---- state machine -------------------------------------------------------
   always_ff @(posedge clk) begin
     if (rst) begin
-      state      <= S_IDLE;
+      state      <= S_PLAY;
       cur_player <= 1'b0;
       sel_valid  <= 1'b0;
       sel_idx    <= '0;
-      tgt_x      <= '0;
-      tgt_y      <= '0;
       for (int i = 0; i < MAX_UNITS; i++) units[i] <= start_unit(i);
-      cursor_x   <= START0.x;                  // start on Player 1's unit
+      cursor_x   <= START0.x;
       cursor_y   <= START0.y;
     end else begin
       case (state)
-        S_IDLE: begin
+        S_PLAY: begin
           if (!sel_valid) begin
+            // ---- cursor mode ----
             if (arrow) begin
               if (in_bounds) begin
                 cursor_x <= step_x;
@@ -134,37 +120,21 @@ module game_ctrl
               // (centre on a city does nothing yet: reserved for building units)
             end
           end else begin
+            // ---- unit selected ----
             if (press[BTN_C]) begin
               sel_valid <= 1'b0;
-            end else if (arrow && in_bounds) begin
-              tgt_x <= step_x;
-              tgt_y <= step_y;
-              state <= S_WAIT;
+            end else if (arrow && can_move) begin
+              units[sel_idx].x     <= step_x;
+              units[sel_idx].y     <= step_y;
+              units[sel_idx].moves <= units[sel_idx].moves - 1'b1;
+              cursor_x <= step_x;
+              cursor_y <= step_y;
+              if (units[sel_idx].moves == 2'd1) begin   // this was its last point
+                sel_valid <= 1'b0;
+                if (!others_have_moves) state <= S_END_TURN;
+              end
             end
-          end
-        end
-
-        S_WAIT: state <= S_CHECK;                 // ROM now reads terrain at target
-
-        S_CHECK: begin
-          if (passable(terr_data) && !at_target[UNIT_IDX_W] && !target_is_enemy_city) begin
-            units[sel_idx].x     <= tgt_x;
-            units[sel_idx].y     <= tgt_y;
-            units[sel_idx].moves <= units[sel_idx].moves - 1'b1;
-            cursor_x <= tgt_x;
-            cursor_y <= tgt_y;
-            state    <= S_AFTER_MOVE;
-          end else begin
-            state <= S_IDLE;                      // not allowed: nothing happens
-          end
-        end
-
-        S_AFTER_MOVE: begin
-          if (units[sel_idx].moves == '0) begin
-            sel_valid <= 1'b0;
-            state     <= own_moves_left ? S_IDLE : S_END_TURN;
-          end else begin
-            state <= S_IDLE;
+            // a blocked move does nothing
           end
         end
 
@@ -176,10 +146,10 @@ module game_ctrl
               units[i].moves <= unit_moves(units[i].utype);
           cursor_x <= next_start_x;
           cursor_y <= next_start_y;
-          state    <= S_IDLE;
+          state    <= S_PLAY;
         end
 
-        default: state <= S_IDLE;
+        default: state <= S_PLAY;
       endcase
     end
   end

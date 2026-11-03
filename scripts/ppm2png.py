@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ppm2png.py in.ppm out.png - convert the simulator's frame dump (binary P6) to PNG."""
+"""Convert a binary PPM frame dump to PNG.  Usage: ppm2png.py in.ppm out.png"""
 import sys
 
 from pngio import write_png

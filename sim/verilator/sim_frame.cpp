@@ -1,20 +1,5 @@
-// sim_frame.cpp - "virtual monitor" for Verilator.
-//
-// Clocks the whole design (game_top) and watches ONLY the VGA pins, exactly
-// like a real monitor would:
-//   - optionally presses buttons first (KEYS string, e.g. "CR": centre, right)
-//   - finds the hsync / vsync pulses and measures their period and width
-//   - takes the visible window at the standard offset after each sync pulse
-//   - checks that everything outside the window is black
-//   - checks tile alignment: inside every 32x32 tile, all TERRAIN-coloured
-//     pixels must be the same colour (if colour and sync were off by N
-//     clocks, tile edges would shift and tiles would mix two terrains).
-//     Non-terrain pixels (cities, units, cursor) are allowed on top.
-//   - checks that both players' colours appear (their cities are drawn),
-//     when the whole map fits on screen
-//   - writes one full frame to a PPM image
-//
-// Usage: sim_frame out.ppm [KEYS]   KEYS: C=centre U=up D=down L=left R=right
+// Verilator "virtual monitor": checks the VGA output and saves one frame.
+// Usage: sim_frame out.ppm [KEYS]   (C U D L R = buttons to press first)
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

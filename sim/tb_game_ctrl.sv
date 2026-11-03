@@ -1,12 +1,4 @@
-// tb_game_ctrl.sv - checks game_ctrl against a reference model.
-//
-// The testbench contains its own simple, software-style copy of the rules
-// (the "model"). It sends thousands of random button presses to both the
-// hardware (game_ctrl + the real terrain ROM) and the model, and after every
-// press compares cursor, current player, selection and the whole unit table.
-// Coverage counters at the end prove that every rule was actually exercised
-// (moves, blocked by terrain / unit / enemy city / screen edge, both kinds of
-// turn end, ...).
+// Testbench: game rules against a reference model (random and directed presses).
 `timescale 1ns/1ps
 
 // Testbench style: blocking "=" in processes is intentional.
@@ -34,7 +26,7 @@ module tb_game_ctrl;
 
   /* verilator lint_off PINCONNECTEMPTY */
   terrain_rom #(.INIT_FILE(MAP_FILE)) u_rom (
-    .clk(clk), .addr_a(terr_addr), .data_a(terr_data), .addr_b('0), .data_b());
+    .addr_a(terr_addr), .data_a(terr_data), .addr_b('0), .data_b());
   /* verilator lint_on PINCONNECTEMPTY */
 
   game_ctrl dut (.clk(clk), .rst(rst), .press(press), .terr_addr(terr_addr),

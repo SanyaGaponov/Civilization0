@@ -1,4 +1,4 @@
-"""pngio.py - tiny PNG writer using only the Python standard library."""
+"""Tiny PNG writer (standard library only)."""
 import struct
 import zlib
 

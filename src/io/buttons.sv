@@ -1,12 +1,4 @@
-// buttons.sv - turns raw push buttons into clean 1-clock "press" pulses.
-//
-// For each button:
-//   1. synchronizer: 2 flip-flops, because the button is not aligned to clk
-//   2. debounce: a new level is accepted only after it has been stable for
-//      2^CNT_W clocks (2^20 at 106 MHz = ~10 ms). Mechanical contacts
-//      "bounce" for a few ms, which would otherwise look like many presses.
-//   3. edge detect: press = 1 for exactly one clock when the clean level
-//      goes from 0 to 1. Holding the button does not repeat.
+// Buttons: synchronize, debounce, one-clock pulse per press.
 module buttons #(
   parameter int N     = 5,
   parameter int CNT_W = 20

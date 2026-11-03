@@ -1,5 +1,4 @@
-# program.tcl - upload build/game_top.bit to the first FPGA found on USB.
-#   vivado -mode batch -source scripts/program.tcl     (or: make program)
+# Upload the bitstream to the first FPGA found on USB.
 set root [file normalize [file join [file dirname [info script]] ..]]
 set bit  [file join $root build game_top.bit]
 

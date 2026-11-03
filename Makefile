@@ -15,8 +15,9 @@ VIVADO    ?= vivado
 MAP       ?= map0
 BUILD     := build
 
+# Design sources, plus the simulation stand-in for the Clocking Wizard IP.
 SRC := src/game_pkg.sv \
-       src/video/clk_gen.sv \
+       sim/clk_wiz_0.sv \
        src/video/vga_out.sv \
        src/video/drawcon.sv \
        src/io/buttons.sv \

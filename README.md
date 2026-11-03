@@ -6,8 +6,6 @@ SystemVerilog arcade game for the Digilent Nexys A7 (Artix-7) with VGA output.
 a fixed map. Each player has one city (building units comes later), and fighting
 comes later too.
 
-![frame](docs/frame_1280x800.png)
-
 ## How to play
 
 Player 1 is **red** (city in the west), Player 2 is **blue** (city in the east).
@@ -32,24 +30,25 @@ Units are drawn as triangles, cities as squares with a white centre.
 
 ```
 src/                    synthesizable RTL code (becomes FPGA hardware)
-  game_pkg.sv           shared constants and types: video mode, map, terrain,
+  game_pkg.sv           shared constants and types: map, terrain,
                         players, cities, units, buttons
-  game_top.sv           top level: wiring only
-  video/clk_gen.sv      MMCM pixel clock + reset synchronizer
-  video/vga_out.sv      VGA timing: counters -> hsync, vsync, de, x, y
-  video/drawcon.sv      pixel colour: terrain -> city -> unit -> cursor layers
+  game_top.sv           top level (FPGA pins): clock, reset, all modules
+  video/vga_out.sv      VGA controller: hcount/vcount -> hsync, vsync,
+                        pix_r/g/b, curr_x/curr_y
+  video/drawcon.sv      colour of each pixel (combinational): bg = terrain,
+                        blk = city / unit / cursor
   io/buttons.sv         button synchronizer + debounce -> 1-clock press pulses
-  game/terrain_rom.sv   64x32 terrain map (2 read ports), from mem/map0.mem
+  game/terrain_rom.sv   64x32 terrain map (2 instant read ports), from mem/map0.mem
   game/game_ctrl.sv     game rules: cursor, units, turns, movement
 constraints/nexys_a7.xdc  pin assignments
 maps/map0.txt           the map, drawn as ASCII (edit this!)
 mem/                    generated memory files (committed, so Vivado needs no Python)
 scripts/                gen_map.py, build.tcl, program.tcl, PNG helpers
+sim/clk_wiz_0.sv        simulation stand-in for the Clocking Wizard IP (never in Vivado)
 sim/tb_vga_out.sv       testbench: VGA timing
 sim/tb_buttons.sv       testbench: debouncing
 sim/tb_game_ctrl.sv     testbench: game rules vs a reference model, 20000 random presses
 sim/verilator/          "virtual monitor": simulates a full frame -> PNG
-docs/                   screenshots
 ```
 
 ## Testing on a Mac (no FPGA, no Vivado)
@@ -90,10 +89,15 @@ Each prints `PASS` or `FAIL`.
 Vivado does not run on macOS, so use a lab PC or a Windows/Linux machine.
 
 ```sh
+module load xilinx    # on the KAUST workstation
 make bit       # or: vivado -mode batch -source scripts/build.tcl
 make program   # board connected via USB
 ```
 
+- `build.tcl` first generates the **Clocking Wizard IP** `clk_wiz_0`, as in
+  the course README (100 MHz in, 83.46 MHz out, no reset input, `locked`
+  output kept), then builds the design. `build/clocks.rpt` shows the exact
+  pixel clock it produced.
 - Read `build/timing.rpt` and the `Timing met / FAILED` line at the end of the build. Negative slack means the design may glitch.
 - For the **50T** board, change `part` at the top of `scripts/build.tcl`.
 - You can also **program from the Mac** with a `.bit` file built elsewhere:
@@ -104,18 +108,21 @@ make program   # board connected via USB
 
 On the board, **LED0** lights when the pixel clock is stable and **LED1** blinks to show the design is running. **LED14** / **LED15** show whose turn it is (Player 1 / Player 2).
 
-## Video mode / monitors
+## Video timing
 
-Set this in `src/game_pkg.sv`:
+1280×800 at 60 Hz with an 83.46 MHz pixel clock, exactly as in the course
+README: `hcount` 0…1679, `vcount` 0…827, visible area x 336…1615 and
+y 27…826, hsync low during 0…135, vsync high during 0…2. The numbers live in
+`src/video/vga_out.sv`. An HDMI-only monitor needs an *active* VGA→HDMI converter.
 
-```systemverilog
-localparam video_mode_e VIDEO_MODE = MODE_1280x800;   // or MODE_640x480
-```
+Two deliberate differences from the course README:
 
-- `MODE_1280x800` uses the course timing (slide 7) with a 106.25 MHz pixel clock, giving about 76 Hz.
-- `MODE_640x480` is standard 640×480 at 60 Hz with a 25.2 MHz clock. **Use it if a monitor shows "no signal" or "out of range".** It shows only the top-left 20×15 tiles, so both cities are off-screen; the game itself needs 1280×800 until scrolling is added.
-- If the monitor still refuses, try flipping `H_POL` / `V_POL` in the same file.
-- An HDMI-only monitor needs an *active* VGA→HDMI converter.
+- **No second, slower "60 Hz" clock for the game logic.** Everything runs on
+  `pixclk`, and the buttons produce 1-clock press pulses. A clock made by a
+  counter can't be timing-checked by Vivado, and signals would cross between
+  two unrelated clocks.
+- **The Clocking Wizard's `locked` output is kept.** It holds the design in
+  reset until the clock is stable.
 
 ## Editing the map
 
@@ -137,5 +144,5 @@ A new terrain type must be added in two files: `src/game_pkg.sv` (enum and `terr
 - One module per file; the file name is the module name.
 - Use `logic` for every signal and port (no `wire` / `reg`). A mistyped signal name is caught by `make lint` (Verilator warning `IMPLICIT`), so run it before every commit.
 - Use `always_ff` with `<=` and `always_comb` with `=`. Assign each signal in exactly one block.
-- One clock (`clk_pix`) for everything. Slow events use a 1-clock enable pulse, not a new clock.
+- One clock (`pixclk`) for everything. Slow events use a 1-clock pulse or a counter bit, not a new clock.
 - `main` must always pass `make lint tb sim`. Develop on branches and tag working board builds.

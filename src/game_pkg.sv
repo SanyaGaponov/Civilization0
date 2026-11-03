@@ -1,50 +1,6 @@
-// game_pkg.sv - constants shared by every module.
-// Compile this file FIRST (Vivado and Verilator both need packages before users).
-// Not every module uses every constant; that's expected for a package.
+// Shared constants and types.
 /* verilator lint_off UNUSEDPARAM */
 package game_pkg;
-
-  // ---------------------------------------------------------------------------
-  // Video mode. Change this ONE line to switch resolution.
-  //   MODE_1280x800 : course timing (slide 7), ~106 MHz pixel clock
-  //   MODE_640x480  : industry-standard 640x480 @ 60 Hz, works on any VGA monitor
-  // ---------------------------------------------------------------------------
-  typedef enum int { MODE_1280x800, MODE_640x480 } video_mode_e;
-  localparam video_mode_e VIDEO_MODE = MODE_1280x800;
-
-  localparam bit HI_RES = (VIDEO_MODE == MODE_1280x800);
-
-  // Horizontal timing in pixels. Order inside one line (as on slide 7):
-  //   [sync pulse][back porch][ACTIVE (visible)][front porch]
-  localparam int H_SYNC   = HI_RES ?  136 :  96;
-  localparam int H_BP     = HI_RES ?  200 :  48;
-  localparam int H_ACTIVE = HI_RES ? 1280 : 640;
-  localparam int H_FP     = HI_RES ?   64 :  16;
-  localparam int H_TOTAL  = H_SYNC + H_BP + H_ACTIVE + H_FP;   // 1680 / 800
-
-  // Vertical timing in lines, same order.
-  localparam int V_SYNC   = HI_RES ?   3 :   2;
-  localparam int V_BP     = HI_RES ?  24 :  33;
-  localparam int V_ACTIVE = HI_RES ? 800 : 480;
-  localparam int V_FP     = HI_RES ?   1 :  10;
-  localparam int V_TOTAL  = V_SYNC + V_BP + V_ACTIVE + V_FP;   // 828 / 525
-
-  // Sync polarity: value driven DURING the sync pulse.
-  // Slide 7 draws the pulses as high; 640x480 is standard negative (low).
-  // If a monitor shows "no signal" / "out of range", try flipping these.
-  localparam bit H_POL = HI_RES ? 1'b1 : 1'b0;
-  localparam bit V_POL = HI_RES ? 1'b1 : 1'b0;
-
-  // Counter widths (enough bits for H_TOTAL-1 and V_TOTAL-1).
-  localparam int HCNT_W = 11;   // up to 2047
-  localparam int VCNT_W = 10;   // up to 1023
-
-  // Pixel clock from the on-chip MMCM: f = 100 MHz * MULT / (DIV * OUT_DIV)
-  //   1280x800: 100 * 10.625 / (1 * 10) = 106.25 MHz
-  //   640x480 : 100 * 31.5   / (5 * 25) =  25.2  MHz (standard is 25.175)
-  localparam real MMCM_MULT    = HI_RES ? 10.625 : 31.5;
-  localparam int  MMCM_DIV     = HI_RES ?  1     :  5;
-  localparam real MMCM_OUT_DIV = HI_RES ? 10.0   : 25.0;
 
   // ---------------------------------------------------------------------------
   // Map geometry
@@ -58,8 +14,7 @@ package game_pkg;
   localparam int MAP_ADDR_W = MAP_W_LOG2 + MAP_H_LOG2;  // address = {tile_y, tile_x}
 
   // ---------------------------------------------------------------------------
-  // Terrain types. 4 bits per tile = one hex digit in mem/map0.mem.
-  // Keep in sync with LEGEND in scripts/gen_map.py.
+  // Terrain types, 4 bits per tile. Codes must match the map generator.
   // ---------------------------------------------------------------------------
   localparam int TERRAIN_W = 4;
   typedef enum logic [TERRAIN_W-1:0] {
@@ -89,10 +44,7 @@ package game_pkg;
   endfunction
 
   // ---------------------------------------------------------------------------
-  // Tile coordinates. Units and the cursor stay inside the playable area:
-  // the 40x25 tiles of maps/map0.txt, which exactly fill a 1280x800 screen.
-  // The rules don't depend on the video mode; at 640x480 only the top-left
-  // 20x15 tiles are visible (until scrolling is added).
+  // Tile coordinates. The playable area is 40x25 tiles = the whole screen.
   // ---------------------------------------------------------------------------
   typedef logic [MAP_W_LOG2-1:0] tile_x_t;
   typedef logic [MAP_H_LOG2-1:0] tile_y_t;
@@ -108,7 +60,7 @@ package game_pkg;
     return p ? 12'h26F : 12'hE22;
   endfunction
 
-  // One hardcoded city per player (tile coordinates on maps/map0.txt).
+  // One hardcoded city per player (tile coordinates).
   localparam tile_x_t CITY0_X = 6'd4;   // Player 1, west
   localparam tile_y_t CITY0_Y = 5'd15;
   localparam tile_x_t CITY1_X = 6'd34;  // Player 2, east

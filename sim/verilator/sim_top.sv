@@ -1,9 +1,4 @@
-// sim_top.sv - Verilator wrapper around game_top.
-// Exposes the timing constants and colours so the C++ "virtual monitor"
-// knows where the visible window is and which colours are terrain. It does
-// NOT peek inside the design: like a real monitor, it only sees the VGA pins.
-// Buttons are debounced over 2^4 clocks here (instead of ~10 ms) so a press
-// takes microseconds of simulated time.
+// Simulation wrapper: VGA pins and constants for the C++ monitor.
 module sim_top
   import game_pkg::*;
 #(
@@ -24,25 +19,26 @@ module sim_top
 
   /* verilator lint_off PINCONNECTEMPTY */
   game_top #(.MAP_FILE(MAP_FILE), .DEBOUNCE_W(4)) dut (
-    .CLK100MHZ (clk),
+    .clk       (clk),
     .CPU_RESETN(rst_n),
     .BTNC(btn[0]), .BTNU(btn[1]), .BTND(btn[2]), .BTNL(btn[3]), .BTNR(btn[4]),
-    .VGA_R(r), .VGA_G(g), .VGA_B(b),
-    .VGA_HS(hs), .VGA_VS(vs),
+    .pix_r(r), .pix_g(g), .pix_b(b),
+    .hsync(hs), .vsync(vs),
     .LED()
   );
   /* verilator lint_on PINCONNECTEMPTY */
 
-  assign p_h_sync   = 16'(H_SYNC);
-  assign p_h_bp     = 16'(H_BP);
-  assign p_h_active = 16'(H_ACTIVE);
-  assign p_h_total  = 16'(H_TOTAL);
-  assign p_v_sync   = 16'(V_SYNC);
-  assign p_v_bp     = 16'(V_BP);
-  assign p_v_active = 16'(V_ACTIVE);
-  assign p_v_total  = 16'(V_TOTAL);
-  assign p_h_pol    = H_POL;
-  assign p_v_pol    = V_POL;
+  // screen timing, as in vga_out (1280x800 at 60 Hz)
+  assign p_h_sync   = 16'd136;
+  assign p_h_bp     = 16'd200;
+  assign p_h_active = 16'd1280;
+  assign p_h_total  = 16'd1680;
+  assign p_v_sync   = 16'd3;
+  assign p_v_bp     = 16'd24;
+  assign p_v_active = 16'd800;
+  assign p_v_total  = 16'd828;
+  assign p_h_pol    = 1'b0;      // hsync active low
+  assign p_v_pol    = 1'b1;      // vsync active high
   assign p_tcol0    = terrain_color(T_OCEAN);
   assign p_tcol1    = terrain_color(T_GRASS);
   assign p_tcol2    = terrain_color(T_PLAINS);
