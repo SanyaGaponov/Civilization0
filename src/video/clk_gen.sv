@@ -5,13 +5,11 @@
 // (BUFG) so it reaches every flip-flop at the same time.
 // In Verilator simulation the Xilinx primitives don't exist, so the input
 // clock is simply passed through (the simulator doesn't care about MHz).
-`default_nettype none
-
 module clk_gen
   import game_pkg::*;
 (
-  input  wire  clk_100m,   // board oscillator
-  input  wire  rst_btn_n,  // CPU_RESETN button, active low, asynchronous
+  input  logic clk_100m,   // board oscillator
+  input  logic rst_btn_n,  // CPU_RESETN button, active low, asynchronous
   output logic clk_pix,    // pixel clock
   output logic rst_pix,    // reset, synchronous to clk_pix, active high
   output logic locked      // 1 when the MMCM output is stable
@@ -61,5 +59,3 @@ module clk_gen
   assign rst_pix = rst_sync[1];
 
 endmodule
-
-`default_nettype wire

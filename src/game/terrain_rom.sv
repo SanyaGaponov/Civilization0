@@ -8,15 +8,13 @@
 // second read port; the renderer side will not change.
 //
 // Read latency: 1 clock (data appears on the clock edge after addr is set).
-`default_nettype none
-
 module terrain_rom
   import game_pkg::*;
 #(
   parameter string INIT_FILE = "map0.mem"
 )(
-  input  wire                  clk,
-  input  wire [MAP_ADDR_W-1:0] addr_b,
+  input  logic                 clk,
+  input  logic [MAP_ADDR_W-1:0] addr_b,
   output logic [TERRAIN_W-1:0] data_b
 );
 
@@ -30,5 +28,3 @@ module terrain_rom
   end
 
 endmodule
-
-`default_nettype wire

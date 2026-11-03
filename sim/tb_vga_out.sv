@@ -7,8 +7,6 @@
 //   - each frame has exactly V_ACTIVE visible lines, y counts 0..V_ACTIVE-1
 //   - frame_end pulses exactly once per frame
 `timescale 1ns/1ps
-`default_nettype none
-
 // Testbench style: blocking "=" inside the sampling process is intentional.
 /* verilator lint_off BLKSEQ */
 module tb_vga_out;
@@ -118,5 +116,3 @@ module tb_vga_out;
 
 endmodule
 /* verilator lint_on BLKSEQ */
-
-`default_nettype wire

@@ -1,7 +1,5 @@
 // game_pkg.sv - constants shared by every module.
 // Compile this file FIRST (Vivado and Verilator both need packages before users).
-`default_nettype none
-
 // Not every module uses every constant; that's expected for a package.
 /* verilator lint_off UNUSEDPARAM */
 package game_pkg;
@@ -75,5 +73,3 @@ package game_pkg;
 
 endpackage
 /* verilator lint_on UNUSEDPARAM */
-
-`default_nettype wire

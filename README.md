@@ -96,7 +96,7 @@ A new terrain type must be added in three places: `game_pkg.sv` (enum), `drawcon
 ## Conventions
 
 - One module per file; the file name is the module name.
-- Every file starts with `` `default_nettype none `` and ends with `` `default_nettype wire ``.
+- Use `logic` for every signal and port (no `wire` / `reg`). A mistyped signal name is caught by `make lint` (Verilator warning `IMPLICIT`), so run it before every commit.
 - Use `always_ff` with `<=` and `always_comb` with `=`. Assign each signal in exactly one block.
 - One clock (`clk_pix`) for everything. Slow events use a 1-clock enable pulse, not a new clock.
 - `main` must always pass `make lint tb sim`. Develop on branches and tag working board builds.

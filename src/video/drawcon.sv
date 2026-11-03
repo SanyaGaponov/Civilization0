@@ -11,23 +11,21 @@
 //
 // For now every tile is a plain colour. Later, a tile-graphics ROM indexed by
 // {terrain, y[4:0], x[4:0]} will replace terrain_color() in stage 2.
-`default_nettype none
-
 module drawcon
   import game_pkg::*;
 #(
   parameter bit GRID = 1'b0          // 1 = darken the first row/column of each tile
 )(
-  input  wire                   clk,
+  input  logic                  clk,
   // from vga_out (stage 0)
-  input  wire                   hsync_in,
-  input  wire                   vsync_in,
-  input  wire                   de_in,
-  input  wire  [HCNT_W-1:0]     x,
-  input  wire  [VCNT_W-1:0]     y,
+  input  logic                  hsync_in,
+  input  logic                  vsync_in,
+  input  logic                  de_in,
+  input  logic [HCNT_W-1:0]     x,
+  input  logic [VCNT_W-1:0]     y,
   // to / from the terrain map
   output logic [MAP_ADDR_W-1:0] map_addr,
-  input  wire  [TERRAIN_W-1:0]  map_data,
+  input  logic [TERRAIN_W-1:0]  map_data,
   // to the VGA pins (stage 2)
   output logic [3:0]            vga_r,
   output logic [3:0]            vga_g,
@@ -80,5 +78,3 @@ module drawcon
   end
 
 endmodule
-
-`default_nettype wire

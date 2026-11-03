@@ -2,15 +2,13 @@
 // Exposes the timing constants so the C++ "virtual monitor" knows where the
 // visible window is. It does NOT peek inside the design: like a real monitor,
 // it only sees the VGA pins.
-`default_nettype none
-
 module sim_top
   import game_pkg::*;
 #(
   parameter string MAP_FILE = "map0.mem"
 )(
-  input  wire         clk,
-  input  wire         rst_n,
+  input  logic        clk,
+  input  logic        rst_n,
   output logic [3:0]  r, g, b,
   output logic        hs, vs,
   output logic [15:0] p_h_sync, p_h_bp, p_h_active, p_h_total,
@@ -40,5 +38,3 @@ module sim_top
   assign p_v_pol    = V_POL;
 
 endmodule
-
-`default_nettype wire

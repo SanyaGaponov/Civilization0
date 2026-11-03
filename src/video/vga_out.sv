@@ -4,13 +4,11 @@
 // Comparators on the counters produce hsync, vsync and the "visible" flag.
 // All outputs are registered, so they are aligned with each other and
 // arrive 1 clock after the counter value they were computed from.
-`default_nettype none
-
 module vga_out
   import game_pkg::*;
 (
-  input  wire               clk,
-  input  wire               rst,
+  input  logic              clk,
+  input  logic              rst,
   output logic              hsync,
   output logic              vsync,
   output logic              de,         // data enable: 1 inside the visible area
@@ -63,5 +61,3 @@ module vga_out
   end
 
 endmodule
-
-`default_nettype wire

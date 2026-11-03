@@ -1,14 +1,12 @@
 // game_top.sv - top level (slide 11). Wiring only, no logic.
 // Port names match the Digilent Nexys A7 master XDC.
-`default_nettype none
-
 module game_top
   import game_pkg::*;
 #(
   parameter string MAP_FILE = "map0.mem"
 )(
-  input  wire        CLK100MHZ,
-  input  wire        CPU_RESETN,   // red reset button, active low
+  input  logic       CLK100MHZ,
+  input  logic       CPU_RESETN,   // red reset button, active low
   output logic [3:0] VGA_R,
   output logic [3:0] VGA_G,
   output logic [3:0] VGA_B,
@@ -78,5 +76,3 @@ module game_top
   assign LED[1] = heartbeat[25];   // ~1.6 Hz blink at 106 MHz, ~0.4 Hz at 25 MHz
 
 endmodule
-
-`default_nettype wire
