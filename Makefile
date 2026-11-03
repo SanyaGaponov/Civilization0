@@ -2,8 +2,9 @@
 #
 #   make mem      ASCII map -> mem/map0.mem (+ .coe, preview PNG)
 #   make lint     Verilator strict lint of all RTL
-#   make tb       run the vga_out testbench
+#   make tb       run all testbenches (vga_out, buttons, game_ctrl)
 #   make sim      simulate one frame of the whole design -> build/frame.png
+#                 press buttons first:  make sim KEYS=CRU  (C U D L R)
 #   make bit      Vivado: synthesize + implement -> build/game_top.bit   (Windows/Linux only)
 #   make program  Vivado: upload the bitstream to the board
 #   make clean
@@ -18,10 +19,12 @@ SRC := src/game_pkg.sv \
        src/video/clk_gen.sv \
        src/video/vga_out.sv \
        src/video/drawcon.sv \
+       src/io/buttons.sv \
        src/game/terrain_rom.sv \
+       src/game/game_ctrl.sv \
        src/game_top.sv
 
-.PHONY: all mem lint tb sim bit program clean
+.PHONY: all mem lint tb tb_vga_out tb_buttons tb_game_ctrl sim bit program clean
 
 all: mem lint tb sim
 
@@ -34,12 +37,28 @@ lint:
 	$(VERILATOR) --lint-only -Wall --top-module game_top $(SRC)
 	@echo "lint OK"
 
-tb:
+TBFLAGS := --binary --timing --timescale 1ns/1ps -Wall
+
+tb: tb_vga_out tb_buttons tb_game_ctrl
+
+tb_vga_out:
 	@mkdir -p $(BUILD)
-	$(VERILATOR) --binary --timing --timescale 1ns/1ps -Wall --top-module tb_vga_out \
-	    -Mdir $(BUILD)/tb -o tb_vga_out \
+	$(VERILATOR) $(TBFLAGS) --top-module tb_vga_out -Mdir $(BUILD)/tb_vga_out -o tb \
 	    src/game_pkg.sv src/video/vga_out.sv sim/tb_vga_out.sv
-	$(BUILD)/tb/tb_vga_out
+	$(BUILD)/tb_vga_out/tb
+
+tb_buttons:
+	@mkdir -p $(BUILD)
+	$(VERILATOR) $(TBFLAGS) --top-module tb_buttons -Mdir $(BUILD)/tb_buttons -o tb \
+	    src/io/buttons.sv sim/tb_buttons.sv
+	$(BUILD)/tb_buttons/tb
+
+tb_game_ctrl: mem
+	@mkdir -p $(BUILD)
+	$(VERILATOR) $(TBFLAGS) --top-module tb_game_ctrl -Mdir $(BUILD)/tb_game_ctrl -o tb \
+	    -GMAP_FILE='"$(abspath mem/$(MAP).mem)"' \
+	    src/game_pkg.sv src/game/terrain_rom.sv src/game/game_ctrl.sv sim/tb_game_ctrl.sv
+	$(BUILD)/tb_game_ctrl/tb
 
 sim: mem
 	@mkdir -p $(BUILD)
@@ -47,7 +66,7 @@ sim: mem
 	    -Mdir $(BUILD)/sim -o sim_frame \
 	    -GMAP_FILE='"$(abspath mem/$(MAP).mem)"' \
 	    $(SRC) sim/verilator/sim_top.sv $(abspath sim/verilator/sim_frame.cpp)
-	$(BUILD)/sim/sim_frame $(BUILD)/frame.ppm
+	$(BUILD)/sim/sim_frame $(BUILD)/frame.ppm "$(KEYS)"
 	$(PYTHON) scripts/ppm2png.py $(BUILD)/frame.ppm $(BUILD)/frame.png
 
 bit: mem
