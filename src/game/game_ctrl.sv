@@ -4,7 +4,7 @@ module game_ctrl
 (
   input  logic                    clk,
   input  logic                    rst,
-  input  logic [NUM_BTN-1:0]      press,       // 1-clock pulses from buttons.sv
+  input  logic [NUM_BTN-1:0]      press,       // 1-clock pulses from button.sv
   // terrain map (game read of terrain_memory, combinational)
   output logic [MAP_ADDR_W-1:0]   terr_addr,
   input  logic [TERRAIN_W-1:0]    terr_data,

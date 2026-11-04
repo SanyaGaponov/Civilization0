@@ -37,7 +37,7 @@ src/                    synthesizable RTL code (becomes FPGA hardware)
                         pix_r/g/b, curr_x/curr_y
   video/drawcon.sv      colour of each pixel (combinational): bg = terrain,
                         blk = city / unit / cursor
-  io/buttons.sv         button synchronizer + debounce -> 1-clock press pulses
+  io/button.sv          one button: synchronizer, slow look (no bounce) -> 1-clock pulse
   game/terrain_memory.sv
                         64x32 terrain map (2 instant reads), from mem/map0.mem
   game/game_ctrl.sv     game rules: cursor, units, turns, movement
@@ -47,7 +47,7 @@ mem/                    generated memory files (committed, so Vivado needs no Py
 scripts/                gen_map.py, build.tcl, program.tcl, PNG helpers
 sim/clk_wiz_0.sv        simulation stand-in for the Clocking Wizard IP (never in Vivado)
 sim/tb_vga_out.sv       testbench: VGA timing
-sim/tb_buttons.sv       testbench: debouncing
+sim/tb_button.sv        testbench: one button (bouncing, repeated presses)
 sim/tb_game_ctrl.sv     testbench: game rules vs a reference model, 20000 random presses
 sim/verilator/          "virtual monitor": simulates a full frame -> PNG
 ```

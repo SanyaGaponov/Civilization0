@@ -3,7 +3,7 @@ module game_top
   import game_pkg::*;
 #(
   parameter string MAP_FILE   = "map0.mem",
-  parameter int    DEBOUNCE_W = 20            // button debounce = 2^20 clocks (~12 ms)
+  parameter int    DEBOUNCE_W = 20            // buttons are read every 2^20 clocks (~12.6 ms)
 )(
   input  logic        clk,          // 100 MHz board clock
   input  logic        CPU_RESETN,   // red reset button, active low
@@ -60,21 +60,12 @@ module game_top
   );
 
   // ---- buttons -> 1-clock press pulses ----
-  logic [NUM_BTN-1:0] btn_raw, press;
-  always_comb begin
-    btn_raw        = '0;
-    btn_raw[BTN_C] = BTNC;
-    btn_raw[BTN_U] = BTNU;
-    btn_raw[BTN_D] = BTND;
-    btn_raw[BTN_L] = BTNL;
-    btn_raw[BTN_R] = BTNR;
-  end
-  buttons #(.N(NUM_BTN), .CNT_W(DEBOUNCE_W)) u_buttons (
-    .clk  (pixclk),
-    .rst  (rst),
-    .raw  (btn_raw),
-    .press(press)
-  );
+  logic [NUM_BTN-1:0] press;
+  button #(.SLOW_W(DEBOUNCE_W)) u_btn_c (.clk(pixclk), .rst(rst), .raw(BTNC), .press(press[BTN_C]));
+  button #(.SLOW_W(DEBOUNCE_W)) u_btn_u (.clk(pixclk), .rst(rst), .raw(BTNU), .press(press[BTN_U]));
+  button #(.SLOW_W(DEBOUNCE_W)) u_btn_d (.clk(pixclk), .rst(rst), .raw(BTND), .press(press[BTN_D]));
+  button #(.SLOW_W(DEBOUNCE_W)) u_btn_l (.clk(pixclk), .rst(rst), .raw(BTNL), .press(press[BTN_L]));
+  button #(.SLOW_W(DEBOUNCE_W)) u_btn_r (.clk(pixclk), .rst(rst), .raw(BTNR), .press(press[BTN_R]));
 
   // ---- terrain map: one read for game logic, one for drawcon ----
   logic [MAP_ADDR_W-1:0] terr_addr, map_addr;

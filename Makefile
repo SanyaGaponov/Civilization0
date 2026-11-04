@@ -2,7 +2,7 @@
 #
 #   make mem      ASCII map -> mem/map0.mem (+ .coe, preview PNG)
 #   make lint     Verilator strict lint of all RTL
-#   make tb       run all testbenches (vga_out, buttons, game_ctrl)
+#   make tb       run all testbenches (vga_out, button, game_ctrl)
 #   make sim      simulate one frame of the whole design -> build/frame.png
 #                 press buttons first:  make sim KEYS=CRU  (C U D L R)
 #   make bit      Vivado: synthesize + implement -> build/game_top.bit   (Windows/Linux only)
@@ -20,12 +20,12 @@ SRC := src/game_pkg.sv \
        sim/clk_wiz_0.sv \
        src/video/vga_out.sv \
        src/video/drawcon.sv \
-       src/io/buttons.sv \
+       src/io/button.sv \
        src/game/terrain_memory.sv \
        src/game/game_ctrl.sv \
        src/game_top.sv
 
-.PHONY: all mem lint tb tb_vga_out tb_buttons tb_game_ctrl sim bit program clean
+.PHONY: all mem lint tb tb_vga_out tb_button tb_game_ctrl sim bit program clean
 
 all: mem lint tb sim
 
@@ -40,7 +40,7 @@ lint:
 
 TBFLAGS := --binary --timing --timescale 1ns/1ps -Wall
 
-tb: tb_vga_out tb_buttons tb_game_ctrl
+tb: tb_vga_out tb_button tb_game_ctrl
 
 tb_vga_out:
 	@mkdir -p $(BUILD)
@@ -48,11 +48,11 @@ tb_vga_out:
 	    src/game_pkg.sv src/video/vga_out.sv sim/tb_vga_out.sv
 	$(BUILD)/tb_vga_out/tb
 
-tb_buttons:
+tb_button:
 	@mkdir -p $(BUILD)
-	$(VERILATOR) $(TBFLAGS) --top-module tb_buttons -Mdir $(BUILD)/tb_buttons -o tb \
-	    src/io/buttons.sv sim/tb_buttons.sv
-	$(BUILD)/tb_buttons/tb
+	$(VERILATOR) $(TBFLAGS) --top-module tb_button -Mdir $(BUILD)/tb_button -o tb \
+	    src/io/button.sv sim/tb_button.sv
+	$(BUILD)/tb_button/tb
 
 tb_game_ctrl: mem
 	@mkdir -p $(BUILD)
