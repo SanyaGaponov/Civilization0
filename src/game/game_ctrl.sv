@@ -4,8 +4,8 @@ module game_ctrl
 (
   input  logic                    clk,
   input  logic                    rst,
-  input  logic [NUM_BTN-1:0]      press,       // 1-clock pulses from button.sv
-  // terrain map (game read of terrain_memory, combinational)
+  input  logic [NUM_BTN-1:0]      press,
+  // terrain map
   output logic [MAP_ADDR_W-1:0]   terr_addr,
   input  logic [TERRAIN_W-1:0]    terr_data,
   // game state, read by the renderer
@@ -22,26 +22,24 @@ module game_ctrl
 
   localparam unit_t START0 = start_unit(0);    // Player 1's first unit (cursor starts there)
 
-  // ---- one step from the cursor (or from the selected unit) -------------
-  tile_x_t base_x, step_x;
-  tile_y_t base_y, step_y;
+  // ---- one step from the cursor (a selected unit is always under the cursor) ----
+  tile_x_t step_x;
+  tile_y_t step_y;
   logic    arrow, in_bounds;
 
   always_comb begin
-    base_x    = sel_valid ? units[sel_idx].x : cursor_x;
-    base_y    = sel_valid ? units[sel_idx].y : cursor_y;
-    step_x    = base_x;
-    step_y    = base_y;
+    step_x    = cursor_x;
+    step_y    = cursor_y;
     in_bounds = 1'b1;
     arrow     = press[BTN_U] | press[BTN_D] | press[BTN_L] | press[BTN_R];
     if (press[BTN_U]) begin
-      if (base_y == '0) in_bounds = 1'b0; else step_y = base_y - 1'b1;
+      if (cursor_y == '0) in_bounds = 1'b0; else step_y = cursor_y - 1'b1;
     end else if (press[BTN_D]) begin
-      if (base_y == tile_y_t'(PLAY_H - 1)) in_bounds = 1'b0; else step_y = base_y + 1'b1;
+      if (cursor_y == tile_y_t'(PLAY_H - 1)) in_bounds = 1'b0; else step_y = cursor_y + 1'b1;
     end else if (press[BTN_L]) begin
-      if (base_x == '0) in_bounds = 1'b0; else step_x = base_x - 1'b1;
+      if (cursor_x == '0) in_bounds = 1'b0; else step_x = cursor_x - 1'b1;
     end else if (press[BTN_R]) begin
-      if (base_x == tile_x_t'(PLAY_W - 1)) in_bounds = 1'b0; else step_x = base_x + 1'b1;
+      if (cursor_x == tile_x_t'(PLAY_W - 1)) in_bounds = 1'b0; else step_x = cursor_x + 1'b1;
     end
   end
 

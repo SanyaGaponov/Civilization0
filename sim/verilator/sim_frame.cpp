@@ -41,10 +41,10 @@ int main(int argc, char** argv) {
       case 'L': bit = 3; break;  case 'R': bit = 4; break;
       default: std::printf("ignoring unknown key '%c'\n", *k); continue;
     }
-    top.btn = 1u << bit;                   // hold longer than 2^4 clocks (time between button looks)
-    for (int i = 0; i < 64; i++) tick();
+    top.btn = 1u << bit;                   // hold longer than 2^20 clocks (time between button looks)
+    for (int i = 0; i < (1 << 20) + 16; i++) tick();
     top.btn = 0;                           // release
-    for (int i = 0; i < 64; i++) tick();
+    for (int i = 0; i < (1 << 20) + 16; i++) tick();
   }
   if (*keys) std::printf("pressed keys: %s\n", keys);
 

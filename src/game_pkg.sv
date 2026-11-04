@@ -2,9 +2,7 @@
 /* verilator lint_off UNUSEDPARAM */
 package game_pkg;
 
-  // ---------------------------------------------------------------------------
   // Map geometry
-  // ---------------------------------------------------------------------------
   localparam int TILE_LOG2  = 5;                  // tiles are 32x32 pixels
   localparam int TILE_SIZE  = 1 << TILE_LOG2;
   localparam int MAP_W_LOG2 = 6;                  // stored map: 64 tiles wide
@@ -13,9 +11,7 @@ package game_pkg;
   localparam int MAP_H      = 1 << MAP_H_LOG2;
   localparam int MAP_ADDR_W = MAP_W_LOG2 + MAP_H_LOG2;  // address = {tile_y, tile_x}
 
-  // ---------------------------------------------------------------------------
   // Terrain types, 4 bits per tile. Codes must match the map generator.
-  // ---------------------------------------------------------------------------
   localparam int TERRAIN_W = 4;
   typedef enum logic [TERRAIN_W-1:0] {
     T_OCEAN    = 4'h0,
@@ -38,24 +34,21 @@ package game_pkg;
     endcase
   endfunction
 
-  // Units can't enter ocean or mountains.
+  // non-accesible locations check
   function automatic logic passable(input logic [TERRAIN_W-1:0] t);
     return (t != T_OCEAN) && (t != T_MOUNTAIN);
   endfunction
 
-  // ---------------------------------------------------------------------------
   // Tile coordinates. The playable area is 40x25 tiles = the whole screen.
-  // ---------------------------------------------------------------------------
   typedef logic [MAP_W_LOG2-1:0] tile_x_t;
   typedef logic [MAP_H_LOG2-1:0] tile_y_t;
   localparam int PLAY_W = 40;
   localparam int PLAY_H = 25;
 
-  // ---------------------------------------------------------------------------
-  // Players: two humans taking turns. 0 = Player 1 (red), 1 = Player 2 (blue).
-  // ---------------------------------------------------------------------------
+  // two humans taking turns. 0 = Player 1 (red), 1 = Player 2 (blue)
   typedef logic player_t;
 
+  // colors for players
   function automatic logic [11:0] player_color(input player_t p);
     return p ? 12'h26F : 12'hE22;
   endfunction
@@ -73,10 +66,8 @@ package game_pkg;
     return p ? CITY1_Y : CITY0_Y;
   endfunction
 
-  // ---------------------------------------------------------------------------
   // Units. A small table in registers; slot i is either empty (valid = 0)
   // or one unit. Cities will fill empty slots when production is added.
-  // ---------------------------------------------------------------------------
   localparam int MAX_UNITS  = 8;
   localparam int UNIT_IDX_W = 3;
   localparam int MOVES_W    = 2;
@@ -122,11 +113,9 @@ package game_pkg;
     return r;
   endfunction
 
-  // ---------------------------------------------------------------------------
   // Push buttons (index into the press[] vector)
-  // ---------------------------------------------------------------------------
   localparam int NUM_BTN = 5;
-  localparam int BTN_C = 0;   // centre: select / deselect / end turn
+  localparam int BTN_C = 0;   // centre
   localparam int BTN_U = 1;
   localparam int BTN_D = 2;
   localparam int BTN_L = 3;

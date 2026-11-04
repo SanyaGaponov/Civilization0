@@ -2,25 +2,24 @@
 module game_top
   import game_pkg::*;
 #(
-  parameter string MAP_FILE   = "map0.mem",
-  parameter int    SLOW_W     = 20            // buttons are read every 2^20 clocks (~12.6 ms)
+  parameter string MAP_FILE = "map0.mem"
 )(
-  input  logic        clk,          // 100 MHz board clock
-  input  logic        CPU_RESETN,   // red reset button, active low
-  input  logic        BTNC,         // centre: select / deselect / end turn
+  input  logic        clk,          // 100 MHz
+  input  logic        CPU_RESETN,
+  input  logic        BTNC,
   input  logic        BTNU,
   input  logic        BTND,
   input  logic        BTNL,
   input  logic        BTNR,
-  output logic [3:0]  pix_r,        // VGA connector
+  output logic [3:0]  pix_r,
   output logic [3:0]  pix_g,
   output logic [3:0]  pix_b,
   output logic        hsync,
   output logic        vsync,
-  output logic [15:0] LED           // 0: clock locked, 1: heartbeat, 14/15: whose turn
+  output logic [15:0] LED
 );
 
-  // ---- pixel clock: 100 MHz -> 83.46 MHz (Clocking Wizard IP) ----
+  // 100 MHz -> 83.46 MHz
   logic pixclk, locked;
   clk_wiz_0 u_clk (
     .clk_out1(pixclk),
@@ -40,8 +39,7 @@ module game_top
   end
   assign rst = rst_sync[1];
 
-  // ---- VGA controller ----
-  logic [3:0]        r, g, b;          // colour from drawcon
+  logic [3:0]        r, g, b;
   logic [10:0]       curr_x;
   logic [9:0]        curr_y;
   vga_out u_vga_out (
@@ -61,11 +59,11 @@ module game_top
 
   // ---- buttons -> 1-clock press pulses ----
   logic [NUM_BTN-1:0] press;
-  button #(.SLOW_W(SLOW_W)) u_btn_c (.clk(pixclk), .rst(rst), .pressed_signal(BTNC), .pressed_finally(press[BTN_C]));
-  button #(.SLOW_W(SLOW_W)) u_btn_u (.clk(pixclk), .rst(rst), .pressed_signal(BTNU), .pressed_finally(press[BTN_U]));
-  button #(.SLOW_W(SLOW_W)) u_btn_d (.clk(pixclk), .rst(rst), .pressed_signal(BTND), .pressed_finally(press[BTN_D]));
-  button #(.SLOW_W(SLOW_W)) u_btn_l (.clk(pixclk), .rst(rst), .pressed_signal(BTNL), .pressed_finally(press[BTN_L]));
-  button #(.SLOW_W(SLOW_W)) u_btn_r (.clk(pixclk), .rst(rst), .pressed_signal(BTNR), .pressed_finally(press[BTN_R]));
+  button u_btn_c (.clk(pixclk), .rst(rst), .pressed_signal(BTNC), .pressed_finally(press[BTN_C]));
+  button u_btn_u (.clk(pixclk), .rst(rst), .pressed_signal(BTNU), .pressed_finally(press[BTN_U]));
+  button u_btn_d (.clk(pixclk), .rst(rst), .pressed_signal(BTND), .pressed_finally(press[BTN_D]));
+  button u_btn_l (.clk(pixclk), .rst(rst), .pressed_signal(BTNL), .pressed_finally(press[BTN_L]));
+  button u_btn_r (.clk(pixclk), .rst(rst), .pressed_signal(BTNR), .pressed_finally(press[BTN_R]));
 
   // ---- terrain map: one read for game logic, one for drawcon ----
   logic [MAP_ADDR_W-1:0] terr_addr, map_addr;
@@ -98,11 +96,9 @@ module game_top
     .units     (units)
   );
 
-  // ---- heartbeat counter: LED1 blink and the selected unit's blinking ----
   logic [25:0] heartbeat;
   always_ff @(posedge pixclk) heartbeat <= heartbeat + 1'b1;
 
-  // ---- drawing logic ----
   drawcon u_drawcon (
     .draw_x    (curr_x),
     .draw_y    (curr_y),
@@ -120,13 +116,12 @@ module game_top
     .b         (b)
   );
 
-  // ---- LEDs ----
   always_comb begin
     LED     = '0;
-    LED[0]  = locked;                // pixel clock is stable
-    LED[1]  = heartbeat[25];         // blinks: the design is running
-    LED[14] = (cur_player == 1'b0);  // Player 1 (red) to move
-    LED[15] = (cur_player == 1'b1);  // Player 2 (blue) to move
+    LED[0]  = locked;
+    LED[1]  = heartbeat[25];
+    LED[14] = (cur_player == 1'b0);
+    LED[15] = (cur_player == 1'b1);
   end
 
 endmodule

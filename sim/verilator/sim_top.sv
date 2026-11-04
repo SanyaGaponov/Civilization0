@@ -18,7 +18,7 @@ module sim_top
 );
 
   /* verilator lint_off PINCONNECTEMPTY */
-  game_top #(.MAP_FILE(MAP_FILE), .SLOW_W(4)) dut (
+  game_top #(.MAP_FILE(MAP_FILE)) dut (
     .clk       (clk),
     .CPU_RESETN(rst_n),
     .BTNC(btn[0]), .BTNU(btn[1]), .BTND(btn[2]), .BTNL(btn[3]), .BTNR(btn[4]),
