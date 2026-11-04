@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
       case 'L': bit = 3; break;  case 'R': bit = 4; break;
       default: std::printf("ignoring unknown key '%c'\n", *k); continue;
     }
-    top.btn = 1u << bit;                   // hold longer than the 2^4-clock debounce
+    top.btn = 1u << bit;                   // hold longer than 2^4 clocks (time between button looks)
     for (int i = 0; i < 64; i++) tick();
     top.btn = 0;                           // release
     for (int i = 0; i < 64; i++) tick();

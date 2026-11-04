@@ -3,7 +3,7 @@ module game_top
   import game_pkg::*;
 #(
   parameter string MAP_FILE   = "map0.mem",
-  parameter int    DEBOUNCE_W = 20            // buttons are read every 2^20 clocks (~12.6 ms)
+  parameter int    SLOW_W     = 20            // buttons are read every 2^20 clocks (~12.6 ms)
 )(
   input  logic        clk,          // 100 MHz board clock
   input  logic        CPU_RESETN,   // red reset button, active low
@@ -61,11 +61,11 @@ module game_top
 
   // ---- buttons -> 1-clock press pulses ----
   logic [NUM_BTN-1:0] press;
-  button #(.SLOW_W(DEBOUNCE_W)) u_btn_c (.clk(pixclk), .rst(rst), .raw(BTNC), .press(press[BTN_C]));
-  button #(.SLOW_W(DEBOUNCE_W)) u_btn_u (.clk(pixclk), .rst(rst), .raw(BTNU), .press(press[BTN_U]));
-  button #(.SLOW_W(DEBOUNCE_W)) u_btn_d (.clk(pixclk), .rst(rst), .raw(BTND), .press(press[BTN_D]));
-  button #(.SLOW_W(DEBOUNCE_W)) u_btn_l (.clk(pixclk), .rst(rst), .raw(BTNL), .press(press[BTN_L]));
-  button #(.SLOW_W(DEBOUNCE_W)) u_btn_r (.clk(pixclk), .rst(rst), .raw(BTNR), .press(press[BTN_R]));
+  button #(.SLOW_W(SLOW_W)) u_btn_c (.clk(pixclk), .rst(rst), .pressed_signal(BTNC), .pressed_finally(press[BTN_C]));
+  button #(.SLOW_W(SLOW_W)) u_btn_u (.clk(pixclk), .rst(rst), .pressed_signal(BTNU), .pressed_finally(press[BTN_U]));
+  button #(.SLOW_W(SLOW_W)) u_btn_d (.clk(pixclk), .rst(rst), .pressed_signal(BTND), .pressed_finally(press[BTN_D]));
+  button #(.SLOW_W(SLOW_W)) u_btn_l (.clk(pixclk), .rst(rst), .pressed_signal(BTNL), .pressed_finally(press[BTN_L]));
+  button #(.SLOW_W(SLOW_W)) u_btn_r (.clk(pixclk), .rst(rst), .pressed_signal(BTNR), .pressed_finally(press[BTN_R]));
 
   // ---- terrain map: one read for game logic, one for drawcon ----
   logic [MAP_ADDR_W-1:0] terr_addr, map_addr;

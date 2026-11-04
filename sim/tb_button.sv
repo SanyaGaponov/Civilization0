@@ -8,20 +8,20 @@ module tb_button;
   localparam int SLOW_W = 5;                // look every 2^5 = 32 clocks
 
   logic clk, rst;
-  logic raw;
-  logic press;
+  logic pressed_signal;
+  logic pressed_finally;
   int   pulses, errors, width;
 
   initial begin
-    clk = 1'b0; rst = 1'b1; raw = 1'b0; pulses = 0; errors = 0; width = 0;
+    clk = 1'b0; rst = 1'b1; pressed_signal = 1'b0; pulses = 0; errors = 0; width = 0;
   end
   always #5 clk = ~clk;
 
-  button #(.SLOW_W(SLOW_W)) dut (.clk(clk), .rst(rst), .raw(raw), .press(press));
+  button #(.SLOW_W(SLOW_W)) dut (.clk(clk), .rst(rst), .pressed_signal(pressed_signal), .pressed_finally(pressed_finally));
 
   // count pulses and check that each one lasts exactly one clock
   always @(posedge clk) begin
-    if (press) begin
+    if (pressed_finally) begin
       width++;
       if (width == 1) pulses++;
       if (width == 2) begin
@@ -37,10 +37,10 @@ module tb_button;
   // Total bounce time stays below 32 clocks, like a real button vs. 12.6 ms.
   task automatic bounce(input int n, input logic level);
     for (int i = 0; i < n; i++) begin
-      raw = ~raw;
+      pressed_signal = ~pressed_signal;
       repeat (1 + (i % 5)) @(negedge clk);   // 1..5 clocks between bounces
     end
-    raw = level;
+    pressed_signal = level;
   endtask
 
   task automatic expect_pulses(input int n, input string what);
@@ -66,8 +66,8 @@ module tb_button;
 
     // 3. three clean presses: three pulses
     repeat (3) begin
-      raw = 1'b1; repeat (80) @(negedge clk);
-      raw = 1'b0; repeat (80) @(negedge clk);
+      pressed_signal = 1'b1; repeat (80) @(negedge clk);
+      pressed_signal = 1'b0; repeat (80) @(negedge clk);
     end
     expect_pulses(4, "three clean presses");
 

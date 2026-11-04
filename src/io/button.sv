@@ -1,18 +1,17 @@
 // One push button: make it safe for our clock, skip bouncing, one pulse per press.
 module button #(
-  parameter int SLOW_W = 20      // look at the button every 2^SLOW_W clocks (~12.6 ms)
+  parameter int SLOW_W = 20
 )(
   input  logic clk,
   input  logic rst,
-  input  logic raw,              // straight from the pin, 1 = held down
-  output logic press             // 1 for one clock when the button goes down
+  input  logic pressed_signal,  
+  output logic pressed_finally
 );
 
-  // 1. Two flip-flops in a row: the pin can change at any moment,
-  //    sync2 is a clean 0 or 1 aligned to our clock.
+  // Adress bouncing here
   logic sync1, sync2;
   always_ff @(posedge clk) begin
-    sync1 <= raw;
+    sync1 <= pressed_signal;
     sync2 <= sync1;
   end
 
@@ -25,12 +24,12 @@ module button #(
     if (rst) begin
       timer <= '0;
       last  <= 1'b0;
-      press <= 1'b0;
+      pressed_finally <= 1'b0;
     end else begin
       timer <= timer + 1'b1;
-      press <= 1'b0;
+      pressed_finally <= 1'b0;
       if (timer == '0) begin
-        press <= sync2 & ~last;  // down now, up last time: a new press
+        pressed_finally <= sync2 & ~last;  // down now, up last time: a new press
         last  <= sync2;
       end
     end
