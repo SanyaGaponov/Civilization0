@@ -5,7 +5,7 @@
 /* verilator lint_off BLKSEQ */
 module tb_button;
 
-  localparam int SLOW_W = 5;                // look every 2^5 = 32 clocks
+  localparam int LOOK_BITS = 5;             // look every 2^5 = 32 clocks
 
   logic clk, rst;
   logic pressed_signal;
@@ -17,7 +17,7 @@ module tb_button;
   end
   always #5 clk = ~clk;
 
-  button #(.SLOW_W(SLOW_W)) dut (.clk(clk), .rst(rst), .pressed_signal(pressed_signal), .pressed_finally(pressed_finally));
+  button #(.LOOK_BITS(LOOK_BITS)) dut (.clk(clk), .rst(rst), .pressed_signal(pressed_signal), .pressed_finally(pressed_finally));
 
   // count pulses and check that each one lasts exactly one clock
   always @(posedge clk) begin

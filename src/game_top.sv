@@ -30,14 +30,14 @@ module game_top
   // ---- reset: held while the button is pressed or the clock is not yet stable.
   // It turns on immediately and turns off on a pixclk edge (after 2 edges),
   // so the button, which is not aligned to the clock, can't cause trouble.
-  logic       rst_in_n, rst;
-  logic [1:0] rst_sync;
-  assign rst_in_n = CPU_RESETN & locked;
-  always_ff @(posedge pixclk or negedge rst_in_n) begin
-    if (!rst_in_n) rst_sync <= 2'b11;
-    else           rst_sync <= {rst_sync[0], 1'b0};
+  logic       reset_request_n, rst;
+  logic [1:0] reset_sync;
+  assign reset_request_n = CPU_RESETN & locked;
+  always_ff @(posedge pixclk or negedge reset_request_n) begin
+    if (!reset_request_n) reset_sync <= 2'b11;
+    else                  reset_sync <= {reset_sync[0], 1'b0};
   end
-  assign rst = rst_sync[1];
+  assign rst = reset_sync[1];
 
   logic [3:0]        r, g, b;
   logic [10:0]       curr_x;
@@ -58,70 +58,70 @@ module game_top
   );
 
   // ---- buttons -> 1-clock press pulses ----
-  logic [NUM_BTN-1:0] press;
-  button u_btn_c (.clk(pixclk), .rst(rst), .pressed_signal(BTNC), .pressed_finally(press[BTN_C]));
-  button u_btn_u (.clk(pixclk), .rst(rst), .pressed_signal(BTNU), .pressed_finally(press[BTN_U]));
-  button u_btn_d (.clk(pixclk), .rst(rst), .pressed_signal(BTND), .pressed_finally(press[BTN_D]));
-  button u_btn_l (.clk(pixclk), .rst(rst), .pressed_signal(BTNL), .pressed_finally(press[BTN_L]));
-  button u_btn_r (.clk(pixclk), .rst(rst), .pressed_signal(BTNR), .pressed_finally(press[BTN_R]));
+  logic [NUM_BUTTONS-1:0] press;
+  button u_btn_c (.clk(pixclk), .rst(rst), .pressed_signal(BTNC), .pressed_finally(press[BTN_CENTER]));
+  button u_btn_u (.clk(pixclk), .rst(rst), .pressed_signal(BTNU), .pressed_finally(press[BTN_UP]));
+  button u_btn_d (.clk(pixclk), .rst(rst), .pressed_signal(BTND), .pressed_finally(press[BTN_DOWN]));
+  button u_btn_l (.clk(pixclk), .rst(rst), .pressed_signal(BTNL), .pressed_finally(press[BTN_LEFT]));
+  button u_btn_r (.clk(pixclk), .rst(rst), .pressed_signal(BTNR), .pressed_finally(press[BTN_RIGHT]));
 
   // ---- terrain map: one read for game logic, one for drawcon ----
-  logic [MAP_ADDR_W-1:0] terr_addr, map_addr;
-  logic [TERRAIN_W-1:0]  terr_data, map_data;
-  terrain_memory #(.world_map_file(MAP_FILE)) u_terrain (
-    .game_addr(terr_addr),
-    .game_data(terr_data),
-    .draw_addr(map_addr),
-    .draw_data(map_data)
+  logic [MAP_ADDR_BITS-1:0] target_terrain_addr, tile_terrain_addr;
+  logic [TERRAIN_BITS-1:0]  target_terrain, tile_terrain;
+  terrain_memory #(.MAP_FILE(MAP_FILE)) u_terrain (
+    .game_addr(target_terrain_addr),
+    .game_data(target_terrain),
+    .draw_addr(tile_terrain_addr),
+    .draw_data(tile_terrain)
   );
 
   // ---- game logic ----
-  tile_x_t               cursor_x;
-  tile_y_t               cursor_y;
-  player_t               cur_player;
-  logic                  sel_valid;
-  logic [UNIT_IDX_W-1:0] sel_idx;
-  unit_t [MAX_UNITS-1:0] units;
+  tile_x_t                    cursor_x;
+  tile_y_t                    cursor_y;
+  player_t                    current_player;
+  logic                       unit_selected;
+  logic [UNIT_INDEX_BITS-1:0] selected_unit;
+  unit_t [MAX_UNITS-1:0]      unit_table;
   game_ctrl u_game (
-    .clk       (pixclk),
-    .rst       (rst),
-    .press     (press),
-    .terr_addr (terr_addr),
-    .terr_data (terr_data),
-    .cursor_x  (cursor_x),
-    .cursor_y  (cursor_y),
-    .cur_player(cur_player),
-    .sel_valid (sel_valid),
-    .sel_idx   (sel_idx),
-    .units     (units)
+    .clk                (pixclk),
+    .rst                (rst),
+    .press              (press),
+    .target_terrain_addr(target_terrain_addr),
+    .target_terrain     (target_terrain),
+    .cursor_x           (cursor_x),
+    .cursor_y           (cursor_y),
+    .current_player     (current_player),
+    .unit_selected      (unit_selected),
+    .selected_unit      (selected_unit),
+    .unit_table         (unit_table)
   );
 
   logic [25:0] heartbeat;
   always_ff @(posedge pixclk) heartbeat <= heartbeat + 1'b1;
 
   drawcon u_drawcon (
-    .draw_x    (curr_x),
-    .draw_y    (curr_y),
-    .map_addr  (map_addr),
-    .map_data  (map_data),
-    .cursor_x  (cursor_x),
-    .cursor_y  (cursor_y),
-    .cur_player(cur_player),
-    .sel_valid (sel_valid),
-    .sel_idx   (sel_idx),
-    .units     (units),
-    .blink     (heartbeat[24]),   // toggles every ~0.2 s
-    .r         (r),
-    .g         (g),
-    .b         (b)
+    .draw_x           (curr_x),
+    .draw_y           (curr_y),
+    .tile_terrain_addr(tile_terrain_addr),
+    .tile_terrain     (tile_terrain),
+    .cursor_x         (cursor_x),
+    .cursor_y         (cursor_y),
+    .current_player   (current_player),
+    .unit_selected    (unit_selected),
+    .selected_unit    (selected_unit),
+    .unit_table       (unit_table),
+    .blink            (heartbeat[24]),   // toggles every ~0.2 s
+    .r                (r),
+    .g                (g),
+    .b                (b)
   );
 
   always_comb begin
     LED     = '0;
     LED[0]  = locked;
     LED[1]  = heartbeat[25];
-    LED[14] = (cur_player == 1'b0);
-    LED[15] = (cur_player == 1'b1);
+    LED[14] = (current_player == 1'b0);
+    LED[15] = (current_player == 1'b1);
   end
 
 endmodule

@@ -14,28 +14,29 @@ module tb_game_ctrl;
   always #5 clk = ~clk;
 
   // ---- design under test -----------------------------------------------------
-  logic [NUM_BTN-1:0]    press;
-  logic [MAP_ADDR_W-1:0] terr_addr;
-  logic [TERRAIN_W-1:0]  terr_data;
-  tile_x_t               cursor_x;
-  tile_y_t               cursor_y;
-  player_t               cur_player;
-  logic                  sel_valid;
-  logic [UNIT_IDX_W-1:0] sel_idx;
-  unit_t [MAX_UNITS-1:0] units;
+  logic [NUM_BUTTONS-1:0]     press;
+  logic [MAP_ADDR_BITS-1:0]   target_terrain_addr;
+  logic [TERRAIN_BITS-1:0]    target_terrain;
+  tile_x_t                    cursor_x;
+  tile_y_t                    cursor_y;
+  player_t                    current_player;
+  logic                       unit_selected;
+  logic [UNIT_INDEX_BITS-1:0] selected_unit;
+  unit_t [MAX_UNITS-1:0]      unit_table;
 
   /* verilator lint_off PINCONNECTEMPTY */
-  terrain_memory #(.world_map_file(MAP_FILE)) u_terrain (
-    .game_addr(terr_addr), .game_data(terr_data), .draw_addr('0), .draw_data());
+  terrain_memory #(.MAP_FILE(MAP_FILE)) u_terrain (
+    .game_addr(target_terrain_addr), .game_data(target_terrain), .draw_addr('0), .draw_data());
   /* verilator lint_on PINCONNECTEMPTY */
 
-  game_ctrl dut (.clk(clk), .rst(rst), .press(press), .terr_addr(terr_addr),
-                 .terr_data(terr_data), .cursor_x(cursor_x), .cursor_y(cursor_y),
-                 .cur_player(cur_player), .sel_valid(sel_valid), .sel_idx(sel_idx),
-                 .units(units));
+  game_ctrl dut (.clk(clk), .rst(rst), .press(press),
+                 .target_terrain_addr(target_terrain_addr), .target_terrain(target_terrain),
+                 .cursor_x(cursor_x), .cursor_y(cursor_y), .current_player(current_player),
+                 .unit_selected(unit_selected), .selected_unit(selected_unit),
+                 .unit_table(unit_table));
 
   // ---- reference model ------------------------------------------------------
-  logic [TERRAIN_W-1:0] map [MAP_W * MAP_H];
+  logic [TERRAIN_BITS-1:0] map [MAP_WIDTH * MAP_HEIGHT];
   int  m_x [MAX_UNITS], m_y [MAX_UNITS], m_moves [MAX_UNITS];
   bit  m_valid [MAX_UNITS], m_owner [MAX_UNITS];
   bit  m_player, m_sel;
@@ -53,17 +54,17 @@ module tb_game_ctrl;
   endfunction
 
   function automatic int city_at(int x, int y);   // -1, 0 (Player 1) or 1 (Player 2)
-    if (x == int'(CITY0_X) && y == int'(CITY0_Y)) return 0;
-    if (x == int'(CITY1_X) && y == int'(CITY1_Y)) return 1;
+    if (x == int'(CITY_P1_X) && y == int'(CITY_P1_Y)) return 0;
+    if (x == int'(CITY_P2_X) && y == int'(CITY_P2_Y)) return 1;
     return -1;
   endfunction
 
   task automatic model_reset();
     for (int i = 0; i < MAX_UNITS; i++) begin
-      unit_t u = start_unit(i);
-      m_valid[i] = u.valid; m_owner[i] = u.owner;
-      m_x[i] = int'(u.x); m_y[i] = int'(u.y); m_moves[i] = int'(u.moves);
-      if (u.valid && u.utype != U_SPEARMAN) begin
+      unit_t u = initial_unit(i);
+      m_valid[i] = u.in_use; m_owner[i] = u.owner;
+      m_x[i] = int'(u.x); m_y[i] = int'(u.y); m_moves[i] = int'(u.moves_left);
+      if (u.in_use && u.kind != U_SPEARMAN) begin
         errors++; $display("ERROR: starter unit %0d is not a spearman", i);
       end
     end
@@ -85,7 +86,7 @@ module tb_game_ctrl;
   task automatic model_press(int b);
     int bx, by, nx, ny, u;
     bit ok, left;
-    if (b == BTN_C) begin
+    if (b == BTN_CENTER) begin
       if (m_sel) begin
         m_sel = 0; n_deselect++;
       end else begin
@@ -104,18 +105,18 @@ module tb_game_ctrl;
     by = m_sel ? m_y[m_sidx] : m_cy;
     nx = bx; ny = by;
     case (b)
-      BTN_U: ny = by - 1;
-      BTN_D: ny = by + 1;
-      BTN_L: nx = bx - 1;
+      BTN_UP:   ny = by - 1;
+      BTN_DOWN: ny = by + 1;
+      BTN_LEFT: nx = bx - 1;
       default: nx = bx + 1;
     endcase
-    ok = (nx >= 0) && (nx < PLAY_W) && (ny >= 0) && (ny < PLAY_H);
+    ok = (nx >= 0) && (nx < SCREEN_TILES_X) && (ny >= 0) && (ny < SCREEN_TILES_Y);
     if (!m_sel) begin
       if (ok) begin m_cx = nx; m_cy = ny; n_cursor++; end else n_cursor_edge++;
       return;
     end
     if (!ok)                                       begin n_blk_edge++;    return; end
-    if (!passable(map[ny * MAP_W + nx]))           begin n_blk_terrain++; return; end
+    if (!is_walkable(map[ny * MAP_WIDTH + nx]))    begin n_blk_terrain++; return; end
     if (unit_at(nx, ny) >= 0)                      begin n_blk_unit++;    return; end
     if (city_at(nx, ny) == int'(!m_player))        begin n_blk_city++;    return; end
     m_x[m_sidx] = nx; m_y[m_sidx] = ny; m_moves[m_sidx]--;
@@ -133,20 +134,20 @@ module tb_game_ctrl;
   task automatic compare(int step);
     bit bad;
     bad = (int'(cursor_x) != m_cx) || (int'(cursor_y) != m_cy) ||
-          (cur_player != m_player) || (sel_valid != m_sel) ||
-          (m_sel && int'(sel_idx) != m_sidx);
+          (current_player != m_player) || (unit_selected != m_sel) ||
+          (m_sel && int'(selected_unit) != m_sidx);
     for (int i = 0; i < MAX_UNITS; i++) begin
-      if (units[i].valid != m_valid[i]) bad = 1;
-      if (m_valid[i] && (units[i].owner != m_owner[i] || int'(units[i].x) != m_x[i] ||
-                         int'(units[i].y) != m_y[i]   || int'(units[i].moves) != m_moves[i]))
+      if (unit_table[i].in_use != m_valid[i]) bad = 1;
+      if (m_valid[i] && (unit_table[i].owner != m_owner[i] || int'(unit_table[i].x) != m_x[i] ||
+                         int'(unit_table[i].y) != m_y[i]   || int'(unit_table[i].moves_left) != m_moves[i]))
         bad = 1;
     end
     if (bad) begin
       errors++;
       if (errors <= 5)
         $display("ERROR after press %0d: HW cursor (%0d,%0d) player %0d sel %0d/%0d unit0 (%0d,%0d) m%0d unit1 (%0d,%0d) m%0d | MODEL cursor (%0d,%0d) player %0d sel %0d/%0d unit0 (%0d,%0d) m%0d unit1 (%0d,%0d) m%0d",
-          step, cursor_x, cursor_y, cur_player, sel_valid, sel_idx,
-          units[0].x, units[0].y, units[0].moves, units[1].x, units[1].y, units[1].moves,
+          step, cursor_x, cursor_y, current_player, unit_selected, selected_unit,
+          unit_table[0].x, unit_table[0].y, unit_table[0].moves_left, unit_table[1].x, unit_table[1].y, unit_table[1].moves_left,
           m_cx, m_cy, m_player, m_sel, m_sidx, m_x[0], m_y[0], m_moves[0], m_x[1], m_y[1], m_moves[1]);
     end
   endtask
@@ -169,23 +170,23 @@ module tb_game_ctrl;
 
   // step in x / y for an arrow button
   function automatic int dir_dx(int d);
-    return (d == BTN_R) ? 1 : (d == BTN_L) ? -1 : 0;
+    return (d == BTN_RIGHT) ? 1 : (d == BTN_LEFT) ? -1 : 0;
   endfunction
   function automatic int dir_dy(int d);
-    return (d == BTN_D) ? 1 : (d == BTN_U) ? -1 : 0;
+    return (d == BTN_DOWN) ? 1 : (d == BTN_UP) ? -1 : 0;
   endfunction
 
   // ---- directed scenario: P1 walks to P2's city and bumps into it ------------
   // P2 passes every turn (moves the cursor to an empty tile, presses centre).
   task automatic p2_pass();
     int nx, ny;
-    for (int d = BTN_U; d <= BTN_R; d++) begin
+    for (int d = BTN_UP; d <= BTN_RIGHT; d++) begin
       nx = m_cx + dir_dx(d);
       ny = m_cy + dir_dy(d);
-      if (nx >= 0 && nx < PLAY_W && ny >= 0 && ny < PLAY_H &&
+      if (nx >= 0 && nx < SCREEN_TILES_X && ny >= 0 && ny < SCREEN_TILES_Y &&
           unit_at(nx, ny) < 0 && city_at(nx, ny) < 0) begin
         do_press(d, -1);
-        do_press(BTN_C, -1);
+        do_press(BTN_CENTER, -1);
         return;
       end
     end
@@ -193,55 +194,55 @@ module tb_game_ctrl;
 
   task automatic directed_meet();
     int gx, gy, cx, cy, nx, ny, head, tail, n_path;
-    int steps [MAP_W * MAP_H];
-    int from_dir [MAP_W * MAP_H];
-    int queue [MAP_W * MAP_H];
+    int steps [MAP_WIDTH * MAP_HEIGHT];
+    int from_dir [MAP_WIDTH * MAP_HEIGHT];
+    int queue [MAP_WIDTH * MAP_HEIGHT];
     int path [64];
-    gx = int'(CITY1_X); gy = int'(CITY1_Y) - 1;        // tile just above P2's city
-    // breadth-first search from P1's unit over passable, empty, non-city tiles
-    for (int i = 0; i < MAP_W * MAP_H; i++) steps[i] = -1;
+    gx = int'(CITY_P2_X); gy = int'(CITY_P2_Y) - 1;        // tile just above P2's city
+    // breadth-first search from P1's unit over is_walkable, empty, non-city tiles
+    for (int i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) steps[i] = -1;
     head = 0; tail = 0;
-    queue[tail] = m_y[0] * MAP_W + m_x[0]; tail++;
-    steps[m_y[0] * MAP_W + m_x[0]] = 0;
+    queue[tail] = m_y[0] * MAP_WIDTH + m_x[0]; tail++;
+    steps[m_y[0] * MAP_WIDTH + m_x[0]] = 0;
     while (head < tail) begin
-      cx = queue[head] % MAP_W; cy = queue[head] / MAP_W; head++;
-      for (int d = BTN_U; d <= BTN_R; d++) begin
+      cx = queue[head] % MAP_WIDTH; cy = queue[head] / MAP_WIDTH; head++;
+      for (int d = BTN_UP; d <= BTN_RIGHT; d++) begin
         nx = cx + dir_dx(d);
         ny = cy + dir_dy(d);
-        if (nx >= 0 && nx < PLAY_W && ny >= 0 && ny < PLAY_H && steps[ny * MAP_W + nx] < 0 &&
-            passable(map[ny * MAP_W + nx]) && unit_at(nx, ny) < 0 && city_at(nx, ny) < 0) begin
-          steps[ny * MAP_W + nx]     = steps[cy * MAP_W + cx] + 1;
-          from_dir[ny * MAP_W + nx] = d;
-          queue[tail] = ny * MAP_W + nx; tail++;
+        if (nx >= 0 && nx < SCREEN_TILES_X && ny >= 0 && ny < SCREEN_TILES_Y && steps[ny * MAP_WIDTH + nx] < 0 &&
+            is_walkable(map[ny * MAP_WIDTH + nx]) && unit_at(nx, ny) < 0 && city_at(nx, ny) < 0) begin
+          steps[ny * MAP_WIDTH + nx]     = steps[cy * MAP_WIDTH + cx] + 1;
+          from_dir[ny * MAP_WIDTH + nx] = d;
+          queue[tail] = ny * MAP_WIDTH + nx; tail++;
         end
       end
     end
-    if (steps[gy * MAP_W + gx] < 0 || steps[gy * MAP_W + gx] > 64) begin
+    if (steps[gy * MAP_WIDTH + gx] < 0 || steps[gy * MAP_WIDTH + gx] > 64) begin
       errors++; $display("ERROR: directed test: no path to (%0d,%0d)", gx, gy); return;
     end
     // walk back from the goal to recover the directions
-    n_path = steps[gy * MAP_W + gx];
+    n_path = steps[gy * MAP_WIDTH + gx];
     cx = gx; cy = gy;
     for (int k = n_path - 1; k >= 0; k--) begin
-      path[k] = from_dir[cy * MAP_W + cx];
+      path[k] = from_dir[cy * MAP_WIDTH + cx];
       cx -= dir_dx(path[k]);
       cy -= dir_dy(path[k]);
     end
     $display("directed: P1 spearman walks %0d tiles to (%0d,%0d), next to P2's city", n_path, gx, gy);
     // one step per turn: select + move (turn ends automatically), then P2 passes
     for (int k = 0; k < n_path; k++) begin
-      do_press(BTN_C, -1);
+      do_press(BTN_CENTER, -1);
       do_press(path[k], -1);
       p2_pass();
     end
     // now at the goal: moving down = into P2's city -> must be refused
-    do_press(BTN_C, -1);
-    do_press(BTN_D, -1);                     // blocked by enemy city
-    do_press(BTN_L, -1);                     // step left: now above P2's spearman
+    do_press(BTN_CENTER, -1);
+    do_press(BTN_DOWN, -1);                     // blocked by enemy city
+    do_press(BTN_LEFT, -1);                     // step left: now above P2's spearman
     p2_pass();
-    do_press(BTN_C, -1);
-    do_press(BTN_D, -1);                     // blocked by P2's unit
-    do_press(BTN_C, -1);                     // deselect
+    do_press(BTN_CENTER, -1);
+    do_press(BTN_DOWN, -1);                     // blocked by P2's unit
+    do_press(BTN_CENTER, -1);                     // deselect
     if (errors == 0) $display("directed: done, hardware matches the model");
   endtask
 
@@ -267,7 +268,7 @@ module tb_game_ctrl;
       r = int'(rnd % 100);
       // centre 15%, arrows 85%; arrows are biased per 2000-press "epoch" so
       // units wander far across the map and eventually meet.
-      if (r < 15) b = BTN_C;
+      if (r < 15) b = BTN_CENTER;
       else begin
         rnd = xorshift(rnd);
         b = 1 + int'(rnd % 4);

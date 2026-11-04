@@ -127,7 +127,7 @@ Two deliberate differences from the course README:
 
 ## Editing the map
 
-Edit `maps/map0.txt` (40×25 characters = the playable area, exactly one 1280×800 screen) and run `make mem`. Cities are fixed in `src/game_pkg.sv` (`CITY0_X` …) at (4, 15) and (34, 13), with each spearman on the tile next to it, so keep those tiles as land.
+Edit `maps/map0.txt` (40×25 characters = the playable area, exactly one 1280×800 screen) and run `make mem`. Cities are fixed in `src/game_pkg.sv` (`CITY_P1_X` …) at (4, 15) and (34, 13), with each spearman on the tile next to it, so keep those tiles as land.
 
 | char | terrain  | colour |
 |------|----------|--------|

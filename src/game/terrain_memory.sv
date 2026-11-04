@@ -2,19 +2,19 @@
 module terrain_memory
   import game_pkg::*;
 #(
-  parameter string world_map_file = "map0.mem"
+  parameter string MAP_FILE = "map0.mem"
 )(
-  input  logic [MAP_ADDR_W-1:0] game_addr,   // read for game_ctrl
-  output logic [TERRAIN_W-1:0]  game_data,
-  input  logic [MAP_ADDR_W-1:0] draw_addr,   // read for drawcon
-  output logic [TERRAIN_W-1:0]  draw_data
+  input  logic [MAP_ADDR_BITS-1:0] game_addr,   // read for game_ctrl
+  output logic [TERRAIN_BITS-1:0]  game_data,
+  input  logic [MAP_ADDR_BITS-1:0] draw_addr,   // read for drawcon
+  output logic [TERRAIN_BITS-1:0]  draw_data
 );
 
-  logic [TERRAIN_W-1:0] mem [MAP_W * MAP_H];
+  logic [TERRAIN_BITS-1:0] tiles [MAP_WIDTH * MAP_HEIGHT];
 
-  initial $readmemh(world_map_file, mem);
+  initial $readmemh(MAP_FILE, tiles);
 
-  assign game_data = mem[game_addr];
-  assign draw_data = mem[draw_addr];
+  assign game_data = tiles[game_addr];
+  assign draw_data = tiles[draw_addr];
 
 endmodule

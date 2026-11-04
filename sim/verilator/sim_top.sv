@@ -47,7 +47,7 @@ module sim_top
   assign p_tcol5    = terrain_color(T_MOUNTAIN);
   assign p_pcol0    = player_color(1'b0);
   assign p_pcol1    = player_color(1'b1);
-  assign p_play_w   = 8'(PLAY_W);
-  assign p_play_h   = 8'(PLAY_H);
+  assign p_play_w   = 8'(SCREEN_TILES_X);
+  assign p_play_h   = 8'(SCREEN_TILES_Y);
 
 endmodule
