@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert an ASCII map into memory files (.mem, .coe, preview .png).
+"""Convert an ASCII map into a memory file (.mem) and a preview .png.
 
 Usage: gen_map.py <map.txt> <output prefix>
 """
@@ -50,10 +50,6 @@ def main():
     with open(out + ".mem", "w") as f:
         f.write("\n".join(f"{v:x}" for v in flat) + "\n")
 
-    with open(out + ".coe", "w") as f:
-        f.write("memory_initialization_radix=16;\nmemory_initialization_vector=\n")
-        f.write(",\n".join(f"{v:x}" for v in flat) + ";\n")
-
     s = 8  # preview pixels per tile
     img = bytearray()
     for py in range(MAP_H * s):
@@ -73,7 +69,7 @@ def main():
                 img[i:i + 3] = b"\xff\x00\x00"
     write_png(out + "_preview.png", MAP_W * s, MAP_H * s, img)
 
-    print(f"{src}: {w}x{h} tiles drawn -> {out}.mem / .coe / _preview.png ({MAP_W}x{MAP_H} stored)")
+    print(f"{src}: {w}x{h} tiles drawn -> {out}.mem / _preview.png ({MAP_W}x{MAP_H} stored)")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # Civilization0 - common commands. Run from the repo root.
 #
-#   make mem      ASCII map -> mem/map0.mem (+ .coe, preview PNG)
+#   make mem      ASCII map -> mem/map0.mem (+ preview PNG)
 #   make lint     Verilator strict lint of all RTL
 #   make tb       run all testbenches (vga_out, button, game_ctrl)
 #   make sim      simulate one frame of the whole design -> build/frame.png

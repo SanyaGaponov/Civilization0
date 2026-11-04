@@ -25,4 +25,4 @@ __pycache__/
 .vscode/
 .idea/
 
-# Note: mem/*.mem and mem/*.coe ARE committed, so Vivado builds work without Python.
+# Note: mem/*.mem IS committed, so Vivado builds work without Python.

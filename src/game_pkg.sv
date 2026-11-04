@@ -4,7 +4,6 @@ package game_pkg;
 
   // Map geometry
   localparam int TILE_LOG2  = 5;                  // tiles are 32x32 pixels
-  localparam int TILE_SIZE  = 1 << TILE_LOG2;
   localparam int MAP_W_LOG2 = 6;                  // stored map: 64 tiles wide
   localparam int MAP_H_LOG2 = 5;                  //             32 tiles high
   localparam int MAP_W      = 1 << MAP_W_LOG2;

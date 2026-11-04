@@ -63,9 +63,9 @@ brew install verilator        # needs Homebrew: https://brew.sh
 Then, from the repo root:
 
 ```sh
-make mem     # maps/map0.txt -> mem/map0.mem (+ .coe + mem/map0_preview.png)
+make mem     # maps/map0.txt -> mem/map0.mem (+ mem/map0_preview.png)
 make lint    # strict Verilator lint of all RTL
-make tb      # all testbenches (VGA timing, debouncing, game rules)
+make tb      # all testbenches (VGA timing, button, game rules)
 make sim     # whole design, one frame -> build/frame.png
 open build/frame.png
 make sim KEYS=CRU   # press Centre, Right, Up first, then take the frame
