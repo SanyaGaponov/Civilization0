@@ -7,7 +7,8 @@ set root  [file normalize [file join [file dirname [info script]] ..]]
 set out   [file join $root build]
 set ipdir [file join $out ip]
 file mkdir $out
-file delete -force $ipdir
+file delete -force $ipdir   ;# regenerate the IP from scratch on every build
+file mkdir $ipdir           ;# create_ip needs the folder to exist
 
 create_project -in_memory -part $part
 
