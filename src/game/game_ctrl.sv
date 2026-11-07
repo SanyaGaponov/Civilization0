@@ -67,6 +67,15 @@ module game_ctrl
   assign can_move = target_on_screen && is_walkable(target_terrain) &&
                     !unit_at_target[UNIT_INDEX_BITS] && !target_is_enemy_city;
 
+  logic [UNIT_INDEX_BITS-1:0] defender;   // the unit standing on the target tile
+  logic                       can_attack; // ... and it belongs to the other player
+  assign defender   = unit_at_target[UNIT_INDEX_BITS-1:0];
+  assign can_attack = target_on_screen && unit_at_target[UNIT_INDEX_BITS] &&
+                      unit_table[defender].owner != current_player;
+
+  logic [HP_BITS-1:0] attacker_damage;    // what the selected unit loses when it attacks
+  assign attacker_damage = counter_damage(unit_table[selected_unit].kind);
+
   // Do any of the current player's OTHER units (not the selected one) have points left?
   logic other_units_can_move;
   always_comb begin
@@ -137,6 +146,20 @@ module game_ctrl
                 unit_selected <= 1'b0;
                 if (!other_units_can_move) state <= S_END_TURN;
               end
+            end else if (arrow_pressed && can_attack) begin
+              // ---- attack: nobody moves; a unit that reaches 0 HP is removed ----
+              if (unit_table[defender].hp <= ATTACK_DAMAGE)
+                unit_table[defender] <= '0;                      // defeated: slot is empty
+              else
+                unit_table[defender].hp <= unit_table[defender].hp - ATTACK_DAMAGE;
+              if (unit_table[selected_unit].hp <= attacker_damage)
+                unit_table[selected_unit] <= '0;                 // attacker defeated too
+              else begin
+                unit_table[selected_unit].hp         <= unit_table[selected_unit].hp - attacker_damage;
+                unit_table[selected_unit].moves_left <= '0;      // an attack uses all moves
+              end
+              unit_selected <= 1'b0;
+              if (!other_units_can_move) state <= S_END_TURN;
             end
             // a blocked move does nothing
           end

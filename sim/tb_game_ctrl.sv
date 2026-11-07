@@ -37,15 +37,17 @@ module tb_game_ctrl;
 
   // ---- reference model ------------------------------------------------------
   logic [TERRAIN_BITS-1:0] map [MAP_WIDTH * MAP_HEIGHT];
-  int  m_x [MAX_UNITS], m_y [MAX_UNITS], m_moves [MAX_UNITS];
+  int  m_x [MAX_UNITS], m_y [MAX_UNITS], m_moves [MAX_UNITS], m_hp [MAX_UNITS];
   bit  m_valid [MAX_UNITS], m_owner [MAX_UNITS];
+  unit_type_e m_kind [MAX_UNITS];
   bit  m_player, m_sel;
   int  m_sidx, m_cx, m_cy;
 
   int errors;
   // coverage counters
   int n_cursor, n_cursor_edge, n_select, n_deselect, n_move, n_blk_terrain,
-      n_blk_unit, n_blk_city, n_blk_edge, n_turn_manual, n_turn_auto, n_c_city;
+      n_blk_unit, n_blk_city, n_blk_edge, n_turn_manual, n_turn_auto, n_c_city,
+      n_attack, n_kill;
 
   function automatic int unit_at(int x, int y);
     for (int i = 0; i < MAX_UNITS; i++)
@@ -62,8 +64,12 @@ module tb_game_ctrl;
   task automatic model_reset();
     for (int i = 0; i < MAX_UNITS; i++) begin
       unit_t u = initial_unit(i);
-      m_valid[i] = u.in_use; m_owner[i] = u.owner;
+      m_valid[i] = u.in_use; m_owner[i] = u.owner; m_kind[i] = u.kind;
       m_x[i] = int'(u.x); m_y[i] = int'(u.y); m_moves[i] = int'(u.moves_left);
+      m_hp[i] = int'(u.hp);
+      if (u.in_use && u.hp != MAX_HP) begin
+        errors++; $display("ERROR: starter unit %0d has %0d HP, expected %0d", i, u.hp, MAX_HP);
+      end
       if (u.in_use && u.kind != U_SPEARMAN) begin
         errors++; $display("ERROR: starter unit %0d is not a spearman", i);
       end
@@ -78,13 +84,22 @@ module tb_game_ctrl;
     m_cx = int'(city_x(m_player)); m_cy = int'(city_y(m_player));
     for (int i = MAX_UNITS - 1; i >= 0; i--)
       if (m_valid[i] && m_owner[i] == m_player) begin
-        m_moves[i] = 1;                    // spearmen only, for now
+        m_moves[i] = int'(moves_per_turn(m_kind[i]));
         m_cx = m_x[i]; m_cy = m_y[i];      // cursor -> first own unit
       end
   endtask
 
+  task automatic model_remove(int u);   // a defeated unit's slot becomes empty
+    for (int i = 0; i < MAX_UNITS; i++)
+      if (i == u) begin
+        m_valid[i] = 0; m_owner[i] = 0; m_x[i] = 0; m_y[i] = 0; m_moves[i] = 0; m_hp[i] = 0;
+        m_kind[i] = U_SPEARMAN;
+      end
+    n_kill++;
+  endtask
+
   task automatic model_press(int b);
-    int bx, by, nx, ny, u;
+    int bx, by, nx, ny, u, c;
     bit ok, left;
     if (b == BTN_CENTER) begin
       if (m_sel) begin
@@ -116,6 +131,21 @@ module tb_game_ctrl;
       return;
     end
     if (!ok)                                       begin n_blk_edge++;    return; end
+    u = unit_at(nx, ny);
+    if (u >= 0 && m_owner[u] != m_player) begin    // attack
+      n_attack++;
+      if (m_hp[u] <= int'(ATTACK_DAMAGE)) model_remove(u);
+      else                                m_hp[u] -= int'(ATTACK_DAMAGE);
+      c = int'(counter_damage(m_kind[m_sidx]));
+      if (m_hp[m_sidx] <= c) model_remove(m_sidx);
+      else begin m_hp[m_sidx] -= c; m_moves[m_sidx] = 0; end
+      m_sel = 0;
+      left = 0;
+      for (int i = 0; i < MAX_UNITS; i++)
+        if (m_valid[i] && m_owner[i] == m_player && m_moves[i] > 0) left = 1;
+      if (!left) begin model_end_turn(); n_turn_auto++; end
+      return;
+    end
     if (!is_walkable(map[ny * MAP_WIDTH + nx]))    begin n_blk_terrain++; return; end
     if (unit_at(nx, ny) >= 0)                      begin n_blk_unit++;    return; end
     if (city_at(nx, ny) == int'(!m_player))        begin n_blk_city++;    return; end
@@ -139,7 +169,8 @@ module tb_game_ctrl;
     for (int i = 0; i < MAX_UNITS; i++) begin
       if (unit_table[i].in_use != m_valid[i]) bad = 1;
       if (m_valid[i] && (unit_table[i].owner != m_owner[i] || int'(unit_table[i].x) != m_x[i] ||
-                         int'(unit_table[i].y) != m_y[i]   || int'(unit_table[i].moves_left) != m_moves[i]))
+                         int'(unit_table[i].y) != m_y[i]   || int'(unit_table[i].moves_left) != m_moves[i] ||
+                         int'(unit_table[i].hp) != m_hp[i]))
         bad = 1;
     end
     if (bad) begin
@@ -176,9 +207,9 @@ module tb_game_ctrl;
     return (d == BTN_DOWN) ? 1 : (d == BTN_UP) ? -1 : 0;
   endfunction
 
-  // ---- directed scenario: P1 walks to P2's city and bumps into it ------------
-  // P2 passes every turn (moves the cursor to an empty tile, presses centre).
-  task automatic p2_pass();
+  // ---- directed scenarios ------------------------------------------------------
+  // pass_turn: the current player moves the cursor to an empty tile and presses centre.
+  task automatic pass_turn();
     int nx, ny;
     for (int d = BTN_UP; d <= BTN_RIGHT; d++) begin
       nx = m_cx + dir_dx(d);
@@ -192,7 +223,8 @@ module tb_game_ctrl;
     end
   endtask
 
-  task automatic directed_meet();
+  // fight = 1: attack until P2's spearman is defeated; fight = 0: stop next to it
+  task automatic directed_meet(input bit fight);
     int gx, gy, cx, cy, nx, ny, head, tail, n_path;
     int steps [MAP_WIDTH * MAP_HEIGHT];
     int from_dir [MAP_WIDTH * MAP_HEIGHT];
@@ -233,17 +265,56 @@ module tb_game_ctrl;
     for (int k = 0; k < n_path; k++) begin
       do_press(BTN_CENTER, -1);
       do_press(path[k], -1);
-      p2_pass();
+      pass_turn();
     end
     // now at the goal: moving down = into P2's city -> must be refused
     do_press(BTN_CENTER, -1);
     do_press(BTN_DOWN, -1);                     // blocked by enemy city
     do_press(BTN_LEFT, -1);                     // step left: now above P2's spearman
-    p2_pass();
-    do_press(BTN_CENTER, -1);
-    do_press(BTN_DOWN, -1);                     // blocked by P2's unit
-    do_press(BTN_CENTER, -1);                     // deselect
-    if (errors == 0) $display("directed: done, hardware matches the model");
+    pass_turn();
+    if (!fight) return;
+    // attack P2's spearman (below) until it is defeated: 10 HP, -3 per attack = 4 attacks.
+    // Each attack ends P1's turn; P2 passes in between.
+    for (int k = 0; k < 4; k++) begin
+      do_press(BTN_CENTER, -1);                 // select
+      do_press(BTN_DOWN, -1);                   // attack
+      if (k < 3) pass_turn();
+    end
+    if (unit_table[1].in_use || m_valid[1]) begin
+      errors++; $display("ERROR: directed test: P2's spearman should be defeated");
+    end
+    if (unit_table[0].hp != MAX_HP - 4'd4) begin
+      errors++; $display("ERROR: directed test: P1's spearman has %0d HP, expected 6", unit_table[0].hp);
+    end
+    if (errors == 0) $display("directed: done, P2's spearman defeated in 4 attacks, hardware matches the model");
+  endtask
+
+  // Starts right after directed_meet(0): P1's turn, P1's spearman just above P2's.
+  // P2 attacks 3 times (P1: 10 -> 1 HP, P2: 10 -> 7), then P1 attacks and dies
+  // from the counter-attack (P1: 1 -> 0, removed; P2: 7 -> 4).
+  task automatic directed_counter_kill();
+    for (int k = 0; k < 3; k++) begin
+      pass_turn();                              // P1 passes
+      do_press(BTN_CENTER, -1);                 // P2 selects its spearman
+      do_press(BTN_UP, -1);                     // ... and attacks P1's
+    end
+    do_press(BTN_CENTER, -1);                   // P1 selects
+    do_press(BTN_DOWN, -1);                     // ... and attacks with 1 HP left
+    if (unit_table[0].in_use || m_valid[0]) begin
+      errors++; $display("ERROR: directed test: P1's spearman should die from the counter-attack");
+    end
+    if (unit_table[1].hp != 4'd4) begin
+      errors++; $display("ERROR: directed test: P2's spearman has %0d HP, expected 4", unit_table[1].hp);
+    end
+    if (errors == 0) $display("directed: attacker with 1 HP dies from the counter-attack, hardware matches the model");
+  endtask
+
+  task automatic restart();
+    rst = 1'b1;
+    repeat (2) @(negedge clk);
+    rst = 1'b0;
+    model_reset();
+    @(negedge clk) compare(0);
   endtask
 
   initial begin
@@ -254,14 +325,20 @@ module tb_game_ctrl;
     $readmemh(MAP_FILE, map);
     n_cursor = 0; n_cursor_edge = 0; n_select = 0; n_deselect = 0; n_move = 0;
     n_blk_terrain = 0; n_blk_unit = 0; n_blk_city = 0; n_blk_edge = 0;
-    n_turn_manual = 0; n_turn_auto = 0; n_c_city = 0;
+    n_turn_manual = 0; n_turn_auto = 0; n_c_city = 0; n_attack = 0; n_kill = 0;
 
     repeat (4) @(negedge clk);
     rst = 1'b0;
     model_reset();
     @(negedge clk) compare(0);
 
-    directed_meet();
+    directed_meet(1'b1);           // P1 walks to P2 and defeats it
+    restart();
+    directed_meet(1'b0);
+    directed_counter_kill();       // P1 attacks with 1 HP and dies
+    // fresh game, units next to each other, then random presses: fights happen randomly too
+    restart();
+    directed_meet(1'b0);
 
     for (int step = 1; step <= N_PRESSES; step++) begin
       rnd = xorshift(rnd);
@@ -281,10 +358,10 @@ module tb_game_ctrl;
              n_cursor, n_cursor_edge, n_select, n_deselect);
     $display("          unit moves %0d, blocked by terrain %0d / unit %0d / enemy city %0d / edge %0d,",
              n_move, n_blk_terrain, n_blk_unit, n_blk_city, n_blk_edge);
-    $display("          turn ends manual %0d / auto %0d, centre on city %0d",
-             n_turn_manual, n_turn_auto, n_c_city);
+    $display("          turn ends manual %0d / auto %0d, centre on city %0d, attacks %0d, kills %0d",
+             n_turn_manual, n_turn_auto, n_c_city, n_attack, n_kill);
     if (n_cursor == 0 || n_cursor_edge == 0 || n_select == 0 || n_deselect == 0 || n_move == 0 ||
-        n_blk_terrain == 0 || n_blk_unit == 0 || n_blk_city == 0 ||
+        n_blk_terrain == 0 || n_blk_city == 0 || n_attack == 0 || n_kill == 0 ||
         n_turn_manual == 0 || n_turn_auto == 0) begin
       errors++;
       $display("ERROR: some rules were never exercised (see coverage above)");

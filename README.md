@@ -3,8 +3,7 @@
 SystemVerilog arcade game for the Digilent Nexys A7 (Artix-7) with VGA output.
 
 **Current step:** two human players take turns moving one spearman each across
-a fixed map. Each player has one city (building units comes later), and fighting
-comes later too.
+a fixed map and fighting. Each player has one city (building units comes later).
 
 ## How to play
 
@@ -14,17 +13,23 @@ The cursor colour and LEDs 14/15 show whose turn it is.
 | Situation | Arrow buttons (BTNU/D/L/R) | Centre button (BTNC) |
 |---|---|---|
 | No unit selected | move the cursor one tile (stops at the map edge) | on **your** unit: select it · on an empty tile: **end your turn** · on a city: nothing yet |
-| Unit selected (blinks) | move the unit one tile | deselect |
+| Unit selected (blinks) | move the unit one tile, or **attack** an enemy unit there | deselect |
 
-- A unit can't enter **ocean** or **mountains**, a tile with **another unit**
-  (fighting comes later), or the **enemy city**. Blocked moves do nothing.
+- A unit can't enter **ocean** or **mountains**, a tile with **your own unit**,
+  or the **enemy city**. Blocked moves do nothing.
+- **Fighting:** moving into an enemy unit attacks it instead of moving. The
+  defender loses 3 HP; the attacker loses 1 HP from the counter-attack (archers
+  lose nothing). A unit at 0 HP is removed. Nobody moves, and the attack uses all
+  of the attacker's remaining movement points.
 - Movement points per turn: spearman 1, archer 1, cavalry 2. Every move costs 1.
   Units with no points left are drawn dimmed.
 - When all your units are out of points, the turn passes automatically and
   the cursor jumps to the other player's unit.
 - The red **CPU RESET** button restarts the game.
 
-Units are drawn as triangles, cities as squares with a white centre.
+Units are drawn as triangles with an HP bar underneath (10 segments: green = hit
+points left, red = lost; every unit starts with 10 HP). Cities are squares with a
+white centre.
 
 ## Repository layout
 

@@ -52,10 +52,10 @@ package game_pkg;
     return p ? 12'h26F : 12'hE22;
   endfunction
 
-  // One hardcoded city per player (tile coordinates).
-  localparam tile_x_t CITY_P1_X = 6'd4;   // Player 1, west
+  // Hardcoded city per player (tile coordinates).
+  localparam tile_x_t CITY_P1_X = 6'd4;
   localparam tile_y_t CITY_P1_Y = 5'd15;
-  localparam tile_x_t CITY_P2_X = 6'd34;  // Player 2, east
+  localparam tile_x_t CITY_P2_X = 6'd34;
   localparam tile_y_t CITY_P2_Y = 5'd13;
 
   function automatic tile_x_t city_x(input player_t p);
@@ -70,6 +70,8 @@ package game_pkg;
   localparam int MAX_UNITS       = 8;
   localparam int UNIT_INDEX_BITS = 3;
   localparam int MOVES_BITS      = 2;
+  localparam int HP_BITS         = 4;
+  localparam logic [HP_BITS-1:0] MAX_HP = 4'd10;   // every unit starts with 10 hit points
 
   typedef enum logic [1:0] {
     U_SPEARMAN = 2'd0,
@@ -84,7 +86,15 @@ package game_pkg;
     tile_x_t               x;
     tile_y_t               y;
     logic [MOVES_BITS-1:0] moves_left;   // movement points left this turn
+    logic [HP_BITS-1:0]    hp;           // hit points left, 0..MAX_HP
   } unit_t;
+
+  // Fighting: the defender always loses ATTACK_DAMAGE hit points; the attacker
+  // loses counter_damage() from the defender's counter-attack.
+  localparam logic [HP_BITS-1:0] ATTACK_DAMAGE = 4'd3;
+  function automatic logic [HP_BITS-1:0] counter_damage(input unit_type_e attacker);
+    return (attacker == U_ARCHER) ? 4'd0 : 4'd1;   // archers shoot from a distance
+  endfunction
 
   // Movement points per turn.
   function automatic logic [MOVES_BITS-1:0] moves_per_turn(input unit_type_e t);
@@ -97,10 +107,10 @@ package game_pkg;
     u = '0;
     if (i == 0) u = '{in_use: 1'b1, owner: 1'b0, kind: U_SPEARMAN,
                       x: CITY_P1_X + 6'd1, y: CITY_P1_Y,
-                      moves_left: moves_per_turn(U_SPEARMAN)};
+                      moves_left: moves_per_turn(U_SPEARMAN), hp: MAX_HP};
     if (i == 1) u = '{in_use: 1'b1, owner: 1'b1, kind: U_SPEARMAN,
                       x: CITY_P2_X - 6'd1, y: CITY_P2_Y,
-                      moves_left: moves_per_turn(U_SPEARMAN)};
+                      moves_left: moves_per_turn(U_SPEARMAN), hp: MAX_HP};
     return u;
   endfunction
 

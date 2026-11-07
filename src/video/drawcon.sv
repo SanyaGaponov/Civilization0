@@ -24,6 +24,8 @@ module drawcon
 
   localparam logic [11:0] OUTLINE = 12'h111;   // near-black, non-zero
   localparam logic [11:0] WHITE   = 12'hFFF;
+  localparam logic [11:0] HP_LEFT = 12'h0F0;   // bright green: hit points the unit still has
+  localparam logic [11:0] HP_LOST = 12'h800;   // dark red: hit points already lost
 
   // ---- which tile, and which pixel inside it --------------------------------
   tile_x_t tile_x;
@@ -63,6 +65,13 @@ module drawcon
                                        (dist_from_center + 5'd1 == half_width));
   end
 
+  // HP bar under the triangle: rows 28-29, x 6..25 = 10 segments of 2 px.
+  logic                 on_hp_bar;
+  logic [HP_BITS-1:0]   hp_segment;           // 0..9: which segment this pixel belongs to
+  assign on_hp_bar  = (y_in_tile >= 5'd28) && (y_in_tile <= 5'd29) &&
+                      (x_in_tile >= 5'd6)  && (x_in_tile <= 5'd25);
+  assign hp_segment = HP_BITS'((x_in_tile - 5'd6) >> 1);
+
   // City: square from 5 to 26, 2-px border, white 6x6 centre.
   logic in_city, on_city_border, in_city_center;
   assign in_city        = (x_in_tile >= 5'd5)  && (x_in_tile <= 5'd26) &&
@@ -81,7 +90,7 @@ module drawcon
     return (c >> 1) & 12'h777;   // halve each 4-bit channel
   endfunction
 
-  // ---- foreground: city, unit, cursor (0 = nothing here) ---------------------
+  // ---- foreground: city, unit + HP bar, cursor (0 = nothing here) ---------------------
   logic [3:0]  blk_r, blk_g, blk_b;
   logic [11:0] unit_color;
   always_comb begin
@@ -98,6 +107,9 @@ module drawcon
       unit_color = WHITE;                       // selected unit blinks
     if (unit_on_tile[UNIT_INDEX_BITS] && in_triangle)
       {blk_r, blk_g, blk_b} = on_triangle_edge ? OUTLINE : unit_color;
+    // HP bar: segment k is green if the unit has more than k hit points
+    if (unit_on_tile[UNIT_INDEX_BITS] && on_hp_bar)
+      {blk_r, blk_g, blk_b} = (hp_segment < unit_table[unit_index].hp) ? HP_LEFT : HP_LOST;
     // cursor (on top of everything)
     if (cursor_here && on_cursor_frame)
       {blk_r, blk_g, blk_b} = player_color(current_player);
