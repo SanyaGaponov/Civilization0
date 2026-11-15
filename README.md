@@ -28,14 +28,16 @@ The cursor colour and LEDs 14/15 show whose turn it is.
 src/game_pkg.sv               constants, types, unit and map helpers
 src/game_top.sv               top level: clock, reset, wiring, LEDs
 src/video/vga_out.sv          VGA timing and blanking
-src/video/drawcon.sv          pixel colour: terrain, cities, units, cursor
+src/video/drawcon.sv          pixel colour: terrain, sprites, HP bars, cursor
+src/video/sprite_memory.sv    sprite pixels, loaded from mem/sprites.mem
 src/io/button.sv              synchronize + debounce one button
 src/game/terrain_memory.sv    terrain map, loaded from mem/map0.mem
 src/game/game_ctrl.sv         game rules
 constraints/nexys_a7.xdc      pins
 maps/map0.txt                 the map as text
-mem/                          generated map files
-scripts/                      build, program, map generator
+sprites/                      unit and city sprites as text
+mem/                          generated memory files
+scripts/                      build, program, map and sprite generators
 sim/                          testbenches and the frame simulator
 ```
 
@@ -72,6 +74,17 @@ around the cities (`src/game_pkg.sv`) as land.
 | char | `~` | `.` | `,` | `f` | `h` | `^` |
 |---|---|---|---|---|---|---|
 | terrain | ocean | grass | plains | forest | hills | mountain |
+
+## Sprites
+
+`sprites/spearman.txt`, `archer.txt`, `cavalry.txt`, `city.txt`: 16×16
+characters each, drawn at 2× in a 32×32 tile. Leave the outer row/column free
+for the cursor and the two rows above the bottom one free for the HP bar.
+Run `make mem` after editing; check `mem/sprites_preview.png`.
+
+| char | `.` | `k` | `P` | `p` | `w` | `s` | `b` | `d` | `g` | `G` | `y` |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| colour | transparent | outline | owner | dark owner | white | skin | wood | dark wood | steel | dark steel | gold |
 
 ## Conventions
 

@@ -2,7 +2,8 @@
 module sim_top
   import game_pkg::*;
 #(
-  parameter string MAP_FILE = "map0.mem"
+  parameter string MAP_FILE    = "map0.mem",
+  parameter string SPRITE_FILE = "sprites.mem"
 )(
   input  logic        clk,
   input  logic        rst_n,
@@ -19,7 +20,7 @@ module sim_top
 );
 
   /* verilator lint_off PINCONNECTEMPTY */
-  game_top #(.MAP_FILE(MAP_FILE)) dut (
+  game_top #(.MAP_FILE(MAP_FILE), .SPRITE_FILE(SPRITE_FILE)) dut (
     .clk       (clk),
     .CPU_RESETN(rst_n),
     .BTNC(btn[0]), .BTNU(btn[1]), .BTND(btn[2]), .BTNL(btn[3]), .BTNR(btn[4]),

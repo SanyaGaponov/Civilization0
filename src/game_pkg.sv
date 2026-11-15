@@ -138,6 +138,32 @@ package game_pkg;
     return r;
   endfunction
 
+  // Sprites: 16x16 pixels, drawn 2x; one 4-bit palette index per pixel.
+  // Sprite number = unit kind (0-2); the city is sprite 3.
+  localparam int SPRITE_BITS      = 4;                       // 16 pixels
+  localparam int PIXEL_BITS       = 4;
+  localparam int NUM_SPRITES      = 4;
+  localparam int SPRITE_ADDR_BITS = 2 + 2 * SPRITE_BITS;     // {sprite, row, column}
+  localparam logic [1:0] SPRITE_CITY = 2'd3;
+
+  // Palette (as in scripts/gen_sprites.py); 0 = transparent, 2/3 = owner colour
+  function automatic logic [11:0] sprite_color(input logic [PIXEL_BITS-1:0] i,
+                                               input logic [11:0] owner);
+    case (i)
+      4'h1:    return 12'h111;                  // outline
+      4'h2:    return owner;
+      4'h3:    return (owner >> 1) & 12'h777;   // dark owner colour
+      4'h4:    return 12'hFFF;                  // white
+      4'h5:    return 12'hFC9;                  // skin
+      4'h6:    return 12'h963;                  // wood
+      4'h7:    return 12'h631;                  // dark wood
+      4'h8:    return 12'hCCC;                  // steel / stone
+      4'h9:    return 12'h888;                  // dark steel / stone
+      4'hA:    return 12'hFD2;                  // gold
+      default: return 12'h000;                  // transparent
+    endcase
+  endfunction
+
   // Button positions in the press[] vector
   localparam int NUM_BUTTONS = 5;
   localparam int BTN_CENTER  = 0;

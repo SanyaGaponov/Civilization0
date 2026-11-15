@@ -1,5 +1,5 @@
 # Run from the repo root.
-#   make mem      maps/map0.txt -> mem/map0.mem (+ preview PNG)
+#   make mem      maps/map0.txt, sprites/*.txt -> mem/*.mem (+ preview PNGs)
 #   make lint     Verilator lint
 #   make tb       all testbenches
 #   make sim      one frame of the whole design -> build/frame.png
@@ -13,12 +13,15 @@ PYTHON    ?= python3
 VIVADO    ?= vivado
 MAP       ?= map0
 BUILD     := build
+# Sprite order = unit kind (spearman, archer, cavalry), then the city
+SPRITES   := sprites/spearman.txt sprites/archer.txt sprites/cavalry.txt sprites/city.txt
 
 # Design sources + simulation stand-in for the Clocking Wizard
 SRC := src/game_pkg.sv \
        sim/clk_wiz_0.sv \
        src/video/vga_out.sv \
        src/video/drawcon.sv \
+       src/video/sprite_memory.sv \
        src/io/button.sv \
        src/game/terrain_memory.sv \
        src/game/game_ctrl.sv \
@@ -28,7 +31,10 @@ SRC := src/game_pkg.sv \
 
 all: mem lint tb sim
 
-mem: mem/$(MAP).mem
+mem: mem/$(MAP).mem mem/sprites.mem
+
+mem/sprites.mem: $(SPRITES) scripts/gen_sprites.py
+	$(PYTHON) scripts/gen_sprites.py mem/sprites $(SPRITES)
 
 mem/%.mem: maps/%.txt scripts/gen_map.py
 	$(PYTHON) scripts/gen_map.py $< mem/$*
@@ -65,6 +71,7 @@ sim: mem
 	$(VERILATOR) --cc --exe --build -O2 -Wall --top-module sim_top \
 	    -Mdir $(BUILD)/sim -o sim_frame \
 	    -GMAP_FILE='"$(abspath mem/$(MAP).mem)"' \
+	    -GSPRITE_FILE='"$(abspath mem/sprites.mem)"' \
 	    $(SRC) sim/verilator/sim_top.sv $(abspath sim/verilator/sim_frame.cpp)
 	$(BUILD)/sim/sim_frame $(BUILD)/frame.ppm "$(KEYS)"
 	$(PYTHON) scripts/ppm2png.py $(BUILD)/frame.ppm $(BUILD)/frame.png

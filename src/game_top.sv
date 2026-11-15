@@ -2,7 +2,8 @@
 module game_top
   import game_pkg::*;
 #(
-  parameter string MAP_FILE = "map0.mem"
+  parameter string MAP_FILE    = "map0.mem",
+  parameter string SPRITE_FILE = "sprites.mem"
 )(
   input  logic        clk,          // 100 MHz
   input  logic        CPU_RESETN,
@@ -75,6 +76,16 @@ module game_top
     .draw_data(tile_terrain)
   );
 
+  // Sprites: one read for units, one for cities
+  logic [SPRITE_ADDR_BITS-1:0] unit_sprite_addr, city_sprite_addr;
+  logic [PIXEL_BITS-1:0]       unit_sprite_pixel, city_sprite_pixel;
+  sprite_memory #(.SPRITE_FILE(SPRITE_FILE)) u_sprites (
+    .unit_addr (unit_sprite_addr),
+    .unit_pixel(unit_sprite_pixel),
+    .city_addr (city_sprite_addr),
+    .city_pixel(city_sprite_pixel)
+  );
+
   // Game rules and state
   tile_x_t                    cursor_x;
   tile_y_t                    cursor_y;
@@ -106,6 +117,10 @@ module game_top
     .draw_y           (curr_y),
     .tile_terrain_addr(tile_terrain_addr),
     .tile_terrain     (tile_terrain),
+    .unit_sprite_addr (unit_sprite_addr),
+    .unit_sprite_pixel(unit_sprite_pixel),
+    .city_sprite_addr (city_sprite_addr),
+    .city_sprite_pixel(city_sprite_pixel),
     .cursor_x         (cursor_x),
     .cursor_y         (cursor_y),
     .current_player   (current_player),
