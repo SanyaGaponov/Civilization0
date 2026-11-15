@@ -25,7 +25,8 @@ module sim_top
     .BTNC(btn[0]), .BTNU(btn[1]), .BTND(btn[2]), .BTNL(btn[3]), .BTNR(btn[4]),
     .pix_r(r), .pix_g(g), .pix_b(b),
     .hsync(hs), .vsync(vs),
-    .LED()
+    .LED(),
+    .CA(), .CB(), .CC(), .CD(), .CE(), .CF(), .CG(), .DP(), .AN()
   );
   /* verilator lint_on PINCONNECTEMPTY */
 
