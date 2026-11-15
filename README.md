@@ -18,7 +18,8 @@ The cursor colour and LEDs 14/15 show whose turn it is.
 - Moves per turn: spearman 1, archer 1, cavalry 2. Units with no moves left are dimmed.
 - Attack: the defender loses 3 HP, the attacker 1 HP (archers 0). A unit at 0 HP
   is removed. Attacking uses all remaining moves.
-- HP: archers 6, others 10, shown as a bar under the unit (green = left, red = lost).
+- HP: archers 6, others 10, shown as a bar under the unit (green = left, red = lost),
+  and as a number on the seven segment display.
 - The turn ends by itself when no unit has moves left.
 - **CPU RESET** restarts the game.
 
@@ -31,6 +32,8 @@ src/video/vga_out.sv          VGA timing and blanking
 src/video/drawcon.sv          pixel colour: terrain, sprites, HP bars, cursor
 src/video/sprite_memory.sv    sprite pixels, loaded from mem/sprites.mem
 src/io/button.sv              synchronize + debounce one button
+src/io/sevenseg.sv            one digit: 4-bit value -> segment pattern
+src/io/multidigit.sv          drives the eight shared digits in turn
 src/game/terrain_memory.sv    terrain map, loaded from mem/map0.mem
 src/game/game_ctrl.sv         game rules
 constraints/nexys_a7.xdc      pins
@@ -59,6 +62,17 @@ make program             # or: openFPGALoader -b nexys_a7_100 build/game_top.bit
 ```
 
 LED0: pixel clock locked. LED1: blinks while running.
+
+## Seven segment display
+
+The two right digits show the HP of the unit under the cursor (`00` to `10`,
+dark when the cursor is on an empty tile); the leftmost digit shows whose turn
+it is (`1` or `2`).
+
+The board drives the segments of all eight digits from the same seven pins and
+picks one digit with the (active low) anodes, so `multidigit` shows one digit at
+a time and steps to the next one every 2^17 pixel clocks: 637 digits per second,
+each digit redrawn 80 times per second, which looks steady to the eye.
 
 ## Video
 

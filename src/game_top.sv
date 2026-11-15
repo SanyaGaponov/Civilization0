@@ -17,7 +17,10 @@ module game_top
   output logic [3:0]  pix_b,
   output logic        hsync,
   output logic        vsync,
-  output logic [15:0] LED
+  output logic [15:0] LED,
+  output logic        CA, CB, CC, CD, CE, CF, CG,   // seven segment segments
+  output logic        DP,                           // decimal point (unused)
+  output logic [7:0]  AN                            // seven segment digit selects
 );
 
   // Pixel clock: 100 MHz -> 83.46 MHz
@@ -132,6 +135,53 @@ module game_top
     .g                (g),
     .b                (b)
   );
+
+  // Seven segment display: HP of the unit under the cursor on the two right
+  // digits, the player whose turn it is on the leftmost one.
+  logic [UNIT_INDEX_BITS:0] unit_at_cursor;             // {found, index}
+  logic [HP_BITS-1:0]       cursor_hp;
+  logic [3:0]               hp_tens, hp_ones, turn_digit;
+  logic [7:0]               digit_en;
+  assign unit_at_cursor = find_unit(unit_table, cursor_x, cursor_y);
+  assign cursor_hp      = unit_table[unit_at_cursor[UNIT_INDEX_BITS-1:0]].hp;
+
+  always_comb begin
+    // HP is 0..10, so the tens digit is 1 or 0
+    hp_tens    = (cursor_hp >= 4'd10) ? 4'd1 : 4'd0;
+    hp_ones    = (cursor_hp >= 4'd10) ? cursor_hp - 4'd10 : cursor_hp;
+    turn_digit = current_player ? 4'd2 : 4'd1;
+    // leftmost digit always, the two HP digits only with a unit under the cursor
+    digit_en   = unit_at_cursor[UNIT_INDEX_BITS] ? 8'b1000_0011 : 8'b1000_0000;
+  end
+
+  // One digit step every 2^17 clocks: 637 Hz, so all eight are redrawn at 80 Hz
+  logic seg_tick;
+  assign seg_tick = (heartbeat[16:0] == '0);
+
+  multidigit u_multidigit (
+    .clk (pixclk),
+    .rst (rst),
+    .tick(seg_tick),
+    .dig0(hp_ones),
+    .dig1(hp_tens),
+    .dig2(4'd0),
+    .dig3(4'd0),
+    .dig4(4'd0),
+    .dig5(4'd0),
+    .dig6(4'd0),
+    .dig7(turn_digit),
+    .en  (digit_en),
+    .a   (CA),
+    .b   (CB),
+    .c   (CC),
+    .d   (CD),
+    .e   (CE),
+    .f   (CF),
+    .g   (CG),
+    .an  (AN)
+  );
+
+  assign DP = 1'b1;   // active low, so the point stays off
 
   // LEDs: 0 clock locked, 1 heartbeat, 14/15 whose turn
   always_comb begin
