@@ -26,24 +26,24 @@ module game_ctrl
   // A selected unit is always under the cursor.
   tile_x_t target_x;
   tile_y_t target_y;
-  logic    arrow_pressed, target_on_screen;
+  logic    arrow_pressed, target_on_map;
 
   always_comb begin
     target_x         = cursor_x;
     target_y         = cursor_y;
-    target_on_screen = 1'b1;
+    target_on_map = 1'b1;
     arrow_pressed    = press[BTN_UP] | press[BTN_DOWN] | press[BTN_LEFT] | press[BTN_RIGHT];
     if (press[BTN_UP]) begin
-      if (cursor_y == '0) target_on_screen = 1'b0;
+      if (cursor_y == '0) target_on_map = 1'b0;
       else                target_y = cursor_y - 1'b1;
     end else if (press[BTN_DOWN]) begin
-      if (cursor_y == tile_y_t'(SCREEN_TILES_Y - 1)) target_on_screen = 1'b0;
+      if (cursor_y == tile_y_t'(PLAY_TILES_Y - 1)) target_on_map = 1'b0;
       else                                           target_y = cursor_y + 1'b1;
     end else if (press[BTN_LEFT]) begin
-      if (cursor_x == '0) target_on_screen = 1'b0;
+      if (cursor_x == '0) target_on_map = 1'b0;
       else                target_x = cursor_x - 1'b1;
     end else if (press[BTN_RIGHT]) begin
-      if (cursor_x == tile_x_t'(SCREEN_TILES_X - 1)) target_on_screen = 1'b0;
+      if (cursor_x == tile_x_t'(PLAY_TILES_X - 1)) target_on_map = 1'b0;
       else                                           target_x = cursor_x + 1'b1;
     end
   end
@@ -64,13 +64,13 @@ module game_ctrl
                                 (target_y == city_y(~current_player));
 
   logic can_move;   // target is free land
-  assign can_move = target_on_screen && is_walkable(target_terrain) &&
+  assign can_move = target_on_map && is_walkable(target_terrain) &&
                     !unit_at_target[UNIT_INDEX_BITS] && !target_is_enemy_city;
 
   logic [UNIT_INDEX_BITS-1:0] defender;    // unit on the target tile
   logic                       can_attack;  // ... and it is an enemy
   assign defender   = unit_at_target[UNIT_INDEX_BITS-1:0];
-  assign can_attack = target_on_screen && unit_at_target[UNIT_INDEX_BITS] &&
+  assign can_attack = target_on_map && unit_at_target[UNIT_INDEX_BITS] &&
                       unit_table[defender].owner != current_player;
 
   logic [HP_BITS-1:0] attacker_damage;     // HP the selected unit loses when attacking
@@ -115,7 +115,7 @@ module game_ctrl
         S_PLAY: begin
           if (!unit_selected) begin // cursor mode
             if (arrow_pressed) begin
-              if (target_on_screen) begin
+              if (target_on_map) begin
                 cursor_x <= target_x;
                 cursor_y <= target_y;
               end

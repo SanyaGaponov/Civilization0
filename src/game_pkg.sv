@@ -4,7 +4,7 @@ package game_pkg;
 
   // Map geometry
   localparam int TILE_BITS     = 5;                       // tile = 32x32 pixels
-  localparam int MAP_X_BITS    = 6;                       // stored map: 64 tiles wide
+  localparam int MAP_X_BITS    = 5;                       // stored map: 32 tiles wide
   localparam int MAP_Y_BITS    = 5;                       //             32 tiles high
   localparam int MAP_WIDTH     = 1 << MAP_X_BITS;
   localparam int MAP_HEIGHT    = 1 << MAP_Y_BITS;
@@ -39,11 +39,15 @@ package game_pkg;
     return (t != T_OCEAN) && (t != T_MOUNTAIN);
   endfunction
 
-  // Tile coordinates; the screen shows 40x25 tiles
+  // Tile coordinates; the playable map is 32x20 tiles
   typedef logic [MAP_X_BITS-1:0] tile_x_t;
   typedef logic [MAP_Y_BITS-1:0] tile_y_t;
-  localparam int SCREEN_TILES_X = 40;
-  localparam int SCREEN_TILES_Y = 25;
+  localparam int PLAY_TILES_X = 32;
+  localparam int PLAY_TILES_Y = 20;
+
+  // Map position on the 1280x800 screen (pixels): centred
+  localparam int MAP_LEFT = (1280 - (PLAY_TILES_X << TILE_BITS)) / 2;   // 128
+  localparam int MAP_TOP  = (800  - (PLAY_TILES_Y << TILE_BITS)) / 2;   // 80
 
   // Players: 0 = Player 1 (red), 1 = Player 2 (blue)
   typedef logic player_t;
@@ -53,10 +57,10 @@ package game_pkg;
   endfunction
 
   // One fixed city per player (tile coordinates)
-  localparam tile_x_t CITY_P1_X = 6'd4;
-  localparam tile_y_t CITY_P1_Y = 5'd15;
-  localparam tile_x_t CITY_P2_X = 6'd34;
-  localparam tile_y_t CITY_P2_Y = 5'd13;
+  localparam tile_x_t CITY_P1_X = 5'd4;
+  localparam tile_y_t CITY_P1_Y = 5'd10;
+  localparam tile_x_t CITY_P2_X = 5'd27;
+  localparam tile_y_t CITY_P2_Y = 5'd9;
 
   function automatic tile_x_t city_x(input player_t p);
     return p ? CITY_P2_X : CITY_P1_X;
@@ -114,11 +118,11 @@ package game_pkg;
   // Units at reset. Slots 0-2: Player 1, 3-5: Player 2, 6-7: empty.
   function automatic unit_t initial_unit(input int i);
     case (i)
-      0: return new_unit(1'b0, U_SPEARMAN, CITY_P1_X + 6'd1, CITY_P1_Y);          // east of city
+      0: return new_unit(1'b0, U_SPEARMAN, CITY_P1_X + 5'd1, CITY_P1_Y);          // east of city
       1: return new_unit(1'b0, U_ARCHER,   CITY_P1_X,        CITY_P1_Y - 5'd1);   // north
       2: return new_unit(1'b0, U_CAVALRY,  CITY_P1_X,        CITY_P1_Y + 5'd1);   // south
-      3: return new_unit(1'b1, U_SPEARMAN, CITY_P2_X - 6'd1, CITY_P2_Y);          // west of city
-      4: return new_unit(1'b1, U_ARCHER,   CITY_P2_X + 6'd1, CITY_P2_Y);          // east
+      3: return new_unit(1'b1, U_SPEARMAN, CITY_P2_X - 5'd1, CITY_P2_Y);          // west of city
+      4: return new_unit(1'b1, U_ARCHER,   CITY_P2_X + 5'd1, CITY_P2_Y);          // east
       5: return new_unit(1'b1, U_CAVALRY,  CITY_P2_X,        CITY_P2_Y + 5'd1);   // south
       default: return '0;
     endcase

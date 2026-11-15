@@ -27,14 +27,24 @@ module drawcon
   localparam logic [11:0] HP_LEFT = 12'h0F0;   // green: HP left
   localparam logic [11:0] HP_LOST = 12'h800;   // red: HP lost
 
+  // Map area in the middle of the screen; black around it
+  localparam logic [10:0] MAP_RIGHT  = 11'(MAP_LEFT + (PLAY_TILES_X << TILE_BITS));
+  localparam logic [9:0]  MAP_BOTTOM = 10'(MAP_TOP  + (PLAY_TILES_Y << TILE_BITS));
+  logic       on_map;
+  logic [9:0] map_x, map_y;                 // pixel position inside the map
+  assign on_map = (draw_x >= 11'(MAP_LEFT)) && (draw_x < MAP_RIGHT) &&
+                  (draw_y >= 10'(MAP_TOP))  && (draw_y < MAP_BOTTOM);
+  assign map_x  = 10'(draw_x - 11'(MAP_LEFT));
+  assign map_y  = draw_y - 10'(MAP_TOP);
+
   // Tile under the pixel, and the pixel's position inside it (0..31)
   tile_x_t tile_x;
   tile_y_t tile_y;
   logic [TILE_BITS-1:0] x_in_tile, y_in_tile;
-  assign tile_x            = draw_x[TILE_BITS +: MAP_X_BITS];   // draw_x[10:5]
-  assign tile_y            = draw_y[TILE_BITS +: MAP_Y_BITS];   // draw_y[9:5]
-  assign x_in_tile         = draw_x[TILE_BITS-1:0];             // draw_x[4:0]
-  assign y_in_tile         = draw_y[TILE_BITS-1:0];
+  assign tile_x            = map_x[TILE_BITS +: MAP_X_BITS];   // map_x[9:5]
+  assign tile_y            = map_y[TILE_BITS +: MAP_Y_BITS];   // map_y[9:5]
+  assign x_in_tile         = map_x[TILE_BITS-1:0];             // map_x[4:0]
+  assign y_in_tile         = map_y[TILE_BITS-1:0];
   assign tile_terrain_addr = {tile_y, tile_x};
 
   // Background: terrain colour
@@ -122,10 +132,11 @@ module drawcon
       {blk_r, blk_g, blk_b} = player_color(current_player);
   end
 
-  // Foreground wins where it is non-zero
+  // Outside the map: black. Inside: foreground wins where it is non-zero.
   always_comb begin
-    if ({blk_r, blk_g, blk_b} != 12'h000) {r, g, b} = {blk_r, blk_g, blk_b};
-    else                                  {r, g, b} = {bg_r, bg_g, bg_b};
+    if (!on_map)                               {r, g, b} = 12'h000;
+    else if ({blk_r, blk_g, blk_b} != 12'h000) {r, g, b} = {blk_r, blk_g, blk_b};
+    else                                       {r, g, b} = {bg_r, bg_g, bg_b};
   end
 
 endmodule

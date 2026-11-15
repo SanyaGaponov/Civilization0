@@ -110,16 +110,25 @@ int main(int argc, char** argv) {
   CHECK(frames_seen == 2, "did not see 2 vsync pulses in %ld cycles", cyc);
   CHECK(nonblack_blank == 0, "%d non-black pixels during blanking", nonblack_blank);
 
+  // Outside the map: black
+  const int ML = top.p_map_left, MT = top.p_map_top, MW = top.p_play_w, MH = top.p_play_h;
+  int bad_border = 0;
+  for (int y = 0; y < VA; y++)
+    for (int x = 0; x < HA; x++)
+      if ((x < ML || x >= ML + MW * 32 || y < MT || y >= MT + MH * 32) && img[size_t(y) * HA + x])
+        bad_border++;
+  CHECK(bad_border == 0, "%d non-black pixels around the map", bad_border);
+
   // Each tile shows one terrain colour
   auto is_terrain = [&](unsigned c) { for (unsigned t : tcol) if (c == t) return true; return false; };
   int bad_tiles = 0;
-  for (int ty = 0; ty < VA / 32; ty++)
-    for (int tx = 0; tx < HA / 32; tx++) {
+  for (int ty = 0; ty < MH; ty++)
+    for (int tx = 0; tx < MW; tx++) {
       unsigned ref = ~0u;
       bool bad = false;
       for (int y = 0; y < 32 && !bad; y++)
         for (int x = 0; x < 32; x++) {
-          const unsigned c = img[size_t(ty * 32 + y) * HA + tx * 32 + x];
+          const unsigned c = img[size_t(MT + ty * 32 + y) * HA + ML + tx * 32 + x];
           if (!is_terrain(c)) continue;          // city / unit / cursor pixel
           if (ref == ~0u) ref = c;
           else if (c != ref) { bad = true; break; }
@@ -129,15 +138,10 @@ int main(int argc, char** argv) {
   CHECK(bad_tiles == 0, "%d tiles mix two terrain colours (pipeline misaligned?)", bad_tiles);
 
   // Both players' colours are on screen
-  if (HA >= 32 * int(top.p_play_w) && VA >= 32 * int(top.p_play_h)) {
-    for (int p = 0; p < 2; p++) {
-      long n = 0;
-      for (unsigned c : img) n += (c == pcol[p]);
-      CHECK(n > 0, "no pixels in Player %d's colour (city/unit missing)", p + 1);
-    }
-  } else {
-    std::printf("note: screen shows only part of the %dx%d-tile map; player check skipped\n",
-                int(top.p_play_w), int(top.p_play_h));
+  for (int p = 0; p < 2; p++) {
+    long n = 0;
+    for (unsigned c : img) n += (c == pcol[p]);
+    CHECK(n > 0, "no pixels in Player %d's colour (city/unit missing)", p + 1);
   }
 
   FILE* f = std::fopen(out, "wb");
@@ -153,6 +157,6 @@ int main(int argc, char** argv) {
 
   std::printf("simulated %ld clocks, wrote %s\n", cyc, out);
   if (errors) { std::printf("FAIL: %d errors\n", errors); return 1; }
-  std::printf("PASS: sync timing, blanking, tile alignment, both players drawn\n");
+  std::printf("PASS: sync timing, blanking, black border, tile alignment, both players drawn\n");
   return 0;
 }

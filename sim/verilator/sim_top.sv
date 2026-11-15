@@ -14,7 +14,8 @@ module sim_top
   output logic        p_h_pol, p_v_pol,
   output logic [11:0] p_tcol0, p_tcol1, p_tcol2, p_tcol3, p_tcol4, p_tcol5,
   output logic [11:0] p_pcol0, p_pcol1,
-  output logic [7:0]  p_play_w, p_play_h
+  output logic [7:0]  p_play_w, p_play_h,
+  output logic [15:0] p_map_left, p_map_top
 );
 
   /* verilator lint_off PINCONNECTEMPTY */
@@ -47,7 +48,9 @@ module sim_top
   assign p_tcol5    = terrain_color(T_MOUNTAIN);
   assign p_pcol0    = player_color(1'b0);
   assign p_pcol1    = player_color(1'b1);
-  assign p_play_w   = 8'(SCREEN_TILES_X);
-  assign p_play_h   = 8'(SCREEN_TILES_Y);
+  assign p_play_w   = 8'(PLAY_TILES_X);
+  assign p_play_h   = 8'(PLAY_TILES_Y);
+  assign p_map_left = 16'(MAP_LEFT);
+  assign p_map_top  = 16'(MAP_TOP);
 
 endmodule

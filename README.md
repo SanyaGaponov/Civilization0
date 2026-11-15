@@ -1,7 +1,7 @@
 # Civilization0
 
 A small two-player Civilization-like game in SystemVerilog for the Digilent
-Nexys A7-100T, shown on a 1280×800 VGA monitor.
+Nexys A7-100T, shown on a 1280×800 VGA monitor (32×20-tile map in the centre).
 
 ## How to play
 
@@ -66,7 +66,7 @@ Everything runs on this one clock.
 
 ## Map
 
-Edit `maps/map0.txt` (40×25 characters) and run `make mem`. Keep the tiles
+Edit `maps/map0.txt` (32×20 characters) and run `make mem`. Keep the tiles
 around the cities (`src/game_pkg.sv`) as land.
 
 | char | `~` | `.` | `,` | `f` | `h` | `^` |

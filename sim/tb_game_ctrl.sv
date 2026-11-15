@@ -139,7 +139,7 @@ module tb_game_ctrl;
       BTN_LEFT: nx = bx - 1;
       default: nx = bx + 1;
     endcase
-    ok = (nx >= 0) && (nx < SCREEN_TILES_X) && (ny >= 0) && (ny < SCREEN_TILES_Y);
+    ok = (nx >= 0) && (nx < PLAY_TILES_X) && (ny >= 0) && (ny < PLAY_TILES_Y);
     if (!m_sel) begin
       if (ok) begin m_cx = nx; m_cy = ny; n_cursor++; end else n_cursor_edge++;
       return;
@@ -229,7 +229,7 @@ module tb_game_ctrl;
     for (int d = BTN_UP; d <= BTN_RIGHT; d++) begin
       nx = m_cx + dir_dx(d);
       ny = m_cy + dir_dy(d);
-      if (nx >= 0 && nx < SCREEN_TILES_X && ny >= 0 && ny < SCREEN_TILES_Y &&
+      if (nx >= 0 && nx < PLAY_TILES_X && ny >= 0 && ny < PLAY_TILES_Y &&
           unit_at(nx, ny) < 0 && city_at(nx, ny) < 0) begin
         do_press(d, -1);
         do_press(BTN_CENTER, -1);
@@ -260,7 +260,7 @@ module tb_game_ctrl;
       for (int d = BTN_UP; d <= BTN_RIGHT; d++) begin
         nx = cx + dir_dx(d);
         ny = cy + dir_dy(d);
-        if (nx >= 0 && nx < SCREEN_TILES_X && ny >= 0 && ny < SCREEN_TILES_Y && steps[ny * MAP_WIDTH + nx] < 0 &&
+        if (nx >= 0 && nx < PLAY_TILES_X && ny >= 0 && ny < PLAY_TILES_Y && steps[ny * MAP_WIDTH + nx] < 0 &&
             is_walkable(map[ny * MAP_WIDTH + nx]) && unit_at(nx, ny) < 0 && city_at(nx, ny) < 0) begin
           steps[ny * MAP_WIDTH + nx]     = steps[cy * MAP_WIDTH + cx] + 1;
           from_dir[ny * MAP_WIDTH + nx] = d;
@@ -334,14 +334,14 @@ module tb_game_ctrl;
   task automatic directed_auto_end();
     int auto_ends;
     auto_ends = n_turn_auto;
-    do_press(BTN_CENTER, -1); do_press(BTN_RIGHT, -1);   // spearman (5,15) -> (6,15)
-    do_press(BTN_LEFT, -1);   do_press(BTN_LEFT, -1);    // cursor to the archer (4,14)
+    do_press(BTN_CENTER, -1); do_press(BTN_RIGHT, -1);   // spearman (5,10) -> (6,10)
+    do_press(BTN_LEFT, -1);   do_press(BTN_LEFT, -1);    // cursor to the archer (4,9)
     do_press(BTN_UP, -1);
-    do_press(BTN_CENTER, -1); do_press(BTN_UP, -1);      // archer (4,14) -> (4,13)
-    repeat (3) do_press(BTN_DOWN, -1);                   // cursor to the cavalry (4,16)
+    do_press(BTN_CENTER, -1); do_press(BTN_UP, -1);      // archer (4,9) -> (4,8)
+    repeat (3) do_press(BTN_DOWN, -1);                   // cursor to the cavalry (4,11)
     do_press(BTN_CENTER, -1);
-    do_press(BTN_DOWN, -1);                              // cavalry (4,16) -> (4,17), 1 move left
-    do_press(BTN_DOWN, -1);                              // ... -> (4,18), no moves left
+    do_press(BTN_DOWN, -1);                              // cavalry (4,11) -> (4,12), 1 move left
+    do_press(BTN_DOWN, -1);                              // ... -> (4,13), no moves left
     if (current_player != 1'b1 || n_turn_auto != auto_ends + 1) begin
       errors++; $display("ERROR: directed test: turn did not pass after all P1 units moved");
     end
