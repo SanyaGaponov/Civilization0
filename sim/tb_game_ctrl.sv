@@ -1,7 +1,7 @@
-// Testbench: game rules against a reference model (random and directed presses).
+// Testbench: game_ctrl vs. a reference model (directed and random presses).
 `timescale 1ns/1ps
 
-// Testbench style: blocking "=" in processes is intentional.
+// Blocking "=" in processes is intentional here.
 /* verilator lint_off BLKSEQ */
 module tb_game_ctrl;
   import game_pkg::*;
@@ -13,7 +13,7 @@ module tb_game_ctrl;
   initial begin clk = 1'b0; rst = 1'b1; end
   always #5 clk = ~clk;
 
-  // ---- design under test -----------------------------------------------------
+  // Design under test
   logic [NUM_BUTTONS-1:0]     press;
   logic [MAP_ADDR_BITS-1:0]   target_terrain_addr;
   logic [TERRAIN_BITS-1:0]    target_terrain;
@@ -35,7 +35,7 @@ module tb_game_ctrl;
                  .unit_selected(unit_selected), .selected_unit(selected_unit),
                  .unit_table(unit_table));
 
-  // ---- reference model ------------------------------------------------------
+  // Reference model
   logic [TERRAIN_BITS-1:0] map [MAP_WIDTH * MAP_HEIGHT];
   int  m_x [MAX_UNITS], m_y [MAX_UNITS], m_moves [MAX_UNITS], m_hp [MAX_UNITS];
   bit  m_valid [MAX_UNITS], m_owner [MAX_UNITS];
@@ -61,18 +61,32 @@ module tb_game_ctrl;
     return -1;
   endfunction
 
+  localparam int P1_SPEARMAN = 0;   // slots used by the directed tests
+  localparam int P2_SPEARMAN = 3;
+
   task automatic model_reset();
+    int n;
     for (int i = 0; i < MAX_UNITS; i++) begin
       unit_t u = initial_unit(i);
       m_valid[i] = u.in_use; m_owner[i] = u.owner; m_kind[i] = u.kind;
       m_x[i] = int'(u.x); m_y[i] = int'(u.y); m_moves[i] = int'(u.moves_left);
       m_hp[i] = int'(u.hp);
-      if (u.in_use && u.hp != MAX_HP) begin
-        errors++; $display("ERROR: starter unit %0d has %0d HP, expected %0d", i, u.hp, MAX_HP);
+      if (u.in_use && u.hp != max_hp(u.kind)) begin
+        errors++; $display("ERROR: starter unit %0d has %0d HP, expected %0d", i, u.hp, max_hp(u.kind));
       end
-      if (u.in_use && u.kind != U_SPEARMAN) begin
-        errors++; $display("ERROR: starter unit %0d is not a spearman", i);
+    end
+    // one spearman, archer and cavalry per player
+    for (int p = 0; p < 2; p++)
+      for (int k = 0; k < 3; k++) begin
+        n = 0;
+        for (int i = 0; i < MAX_UNITS; i++)
+          if (m_valid[i] && int'(m_owner[i]) == p && int'(m_kind[i]) == k) n++;
+        if (n != 1) begin
+          errors++; $display("ERROR: player %0d starts with %0d units of type %0d, expected 1", p + 1, n, k);
+        end
       end
+    if (m_kind[P1_SPEARMAN] != U_SPEARMAN || m_kind[P2_SPEARMAN] != U_SPEARMAN) begin
+      errors++; $display("ERROR: directed tests expect spearmen in slots %0d and %0d", P1_SPEARMAN, P2_SPEARMAN);
     end
     m_player = 0; m_sel = 0; m_sidx = 0;
     m_cx = m_x[0]; m_cy = m_y[0];
@@ -89,7 +103,7 @@ module tb_game_ctrl;
       end
   endtask
 
-  task automatic model_remove(int u);   // a defeated unit's slot becomes empty
+  task automatic model_remove(int u);   // defeated: slot becomes empty
     for (int i = 0; i < MAX_UNITS; i++)
       if (i == u) begin
         m_valid[i] = 0; m_owner[i] = 0; m_x[i] = 0; m_y[i] = 0; m_moves[i] = 0; m_hp[i] = 0;
@@ -109,7 +123,7 @@ module tb_game_ctrl;
         if (u >= 0) begin
           if (m_owner[u] == m_player && m_moves[u] > 0) begin m_sel = 1; m_sidx = u; n_select++; end
         end else if (city_at(m_cx, m_cy) >= 0) begin
-          n_c_city++;                        // reserved for city menu: nothing happens
+          n_c_city++;                        // city: nothing yet
         end else begin
           model_end_turn(); n_turn_manual++;
         end
@@ -160,7 +174,7 @@ module tb_game_ctrl;
     end
   endtask
 
-  // ---- compare hardware with model ------------------------------------------
+  // Compare hardware with the model
   task automatic compare(int step);
     bit bad;
     bad = (int'(cursor_x) != m_cx) || (int'(cursor_y) != m_cy) ||
@@ -183,7 +197,7 @@ module tb_game_ctrl;
     end
   endtask
 
-  // deterministic pseudo-random numbers (xorshift32), same on every simulator
+  // Repeatable random numbers (xorshift32)
   logic [31:0] rnd;
   function automatic logic [31:0] xorshift(logic [31:0] s);
     s ^= s << 13; s ^= s >> 17; s ^= s << 5;
@@ -194,12 +208,12 @@ module tb_game_ctrl;
     @(negedge clk) press = '0;
     press[b] = 1'b1;
     @(negedge clk) press = '0;
-    repeat (8) @(negedge clk);            // let the state machine finish
+    repeat (8) @(negedge clk);            // let the design settle
     model_press(b);
     compare(step);
   endtask
 
-  // step in x / y for an arrow button
+  // x / y step of an arrow button
   function automatic int dir_dx(int d);
     return (d == BTN_RIGHT) ? 1 : (d == BTN_LEFT) ? -1 : 0;
   endfunction
@@ -207,8 +221,9 @@ module tb_game_ctrl;
     return (d == BTN_DOWN) ? 1 : (d == BTN_UP) ? -1 : 0;
   endfunction
 
-  // ---- directed scenarios ------------------------------------------------------
-  // pass_turn: the current player moves the cursor to an empty tile and presses centre.
+  // Directed tests
+  // pass_turn: move the cursor to an empty tile and press centre.
+  // end_turn_if(p): pass if it is still player p's turn.
   task automatic pass_turn();
     int nx, ny;
     for (int d = BTN_UP; d <= BTN_RIGHT; d++) begin
@@ -223,7 +238,11 @@ module tb_game_ctrl;
     end
   endtask
 
-  // fight = 1: attack until P2's spearman is defeated; fight = 0: stop next to it
+  task automatic end_turn_if(int p);
+    if (int'(m_player) == p) pass_turn();
+  endtask
+
+  // P1's spearman walks next to P2's; fight = 1: then attack until it dies
   task automatic directed_meet(input bit fight);
     int gx, gy, cx, cy, nx, ny, head, tail, n_path;
     int steps [MAP_WIDTH * MAP_HEIGHT];
@@ -231,7 +250,7 @@ module tb_game_ctrl;
     int queue [MAP_WIDTH * MAP_HEIGHT];
     int path [64];
     gx = int'(CITY_P2_X); gy = int'(CITY_P2_Y) - 1;        // tile just above P2's city
-    // breadth-first search from P1's unit over is_walkable, empty, non-city tiles
+    // shortest path (BFS) over free land
     for (int i = 0; i < MAP_WIDTH * MAP_HEIGHT; i++) steps[i] = -1;
     head = 0; tail = 0;
     queue[tail] = m_y[0] * MAP_WIDTH + m_x[0]; tail++;
@@ -252,7 +271,7 @@ module tb_game_ctrl;
     if (steps[gy * MAP_WIDTH + gx] < 0 || steps[gy * MAP_WIDTH + gx] > 64) begin
       errors++; $display("ERROR: directed test: no path to (%0d,%0d)", gx, gy); return;
     end
-    // walk back from the goal to recover the directions
+    // directions, from the goal back to the start
     n_path = steps[gy * MAP_WIDTH + gx];
     cx = gx; cy = gy;
     for (int k = n_path - 1; k >= 0; k--) begin
@@ -261,52 +280,72 @@ module tb_game_ctrl;
       cy -= dir_dy(path[k]);
     end
     $display("directed: P1 spearman walks %0d tiles to (%0d,%0d), next to P2's city", n_path, gx, gy);
-    // one step per turn: select + move (turn ends automatically), then P2 passes
+    // one step per turn; P2 passes
     for (int k = 0; k < n_path; k++) begin
       do_press(BTN_CENTER, -1);
       do_press(path[k], -1);
+      end_turn_if(0);
       pass_turn();
     end
-    // now at the goal: moving down = into P2's city -> must be refused
+    // at the goal: moving into P2's city must be refused
     do_press(BTN_CENTER, -1);
     do_press(BTN_DOWN, -1);                     // blocked by enemy city
     do_press(BTN_LEFT, -1);                     // step left: now above P2's spearman
-    pass_turn();
+    end_turn_if(0);
+    pass_turn();                                // P2 passes
     if (!fight) return;
-    // attack P2's spearman (below) until it is defeated: 10 HP, -3 per attack = 4 attacks.
-    // Each attack ends P1's turn; P2 passes in between.
+    // attack P2's spearman (below): 10 HP, -3 per attack = 4 attacks
     for (int k = 0; k < 4; k++) begin
       do_press(BTN_CENTER, -1);                 // select
       do_press(BTN_DOWN, -1);                   // attack
+      end_turn_if(0);
       if (k < 3) pass_turn();
     end
-    if (unit_table[1].in_use || m_valid[1]) begin
+    if (unit_table[P2_SPEARMAN].in_use || m_valid[P2_SPEARMAN]) begin
       errors++; $display("ERROR: directed test: P2's spearman should be defeated");
     end
-    if (unit_table[0].hp != MAX_HP - 4'd4) begin
-      errors++; $display("ERROR: directed test: P1's spearman has %0d HP, expected 6", unit_table[0].hp);
+    if (unit_table[P1_SPEARMAN].hp != MAX_HP - 4'd4) begin
+      errors++; $display("ERROR: directed test: P1's spearman has %0d HP, expected 6", unit_table[P1_SPEARMAN].hp);
     end
     if (errors == 0) $display("directed: done, P2's spearman defeated in 4 attacks, hardware matches the model");
   endtask
 
-  // Starts right after directed_meet(0): P1's turn, P1's spearman just above P2's.
-  // P2 attacks 3 times (P1: 10 -> 1 HP, P2: 10 -> 7), then P1 attacks and dies
-  // from the counter-attack (P1: 1 -> 0, removed; P2: 7 -> 4).
+  // After directed_meet(0): P2 attacks 3 times (P1 HP 10 -> 1, P2 10 -> 7),
+  // then P1 attacks and dies from the counter-attack (P2 HP 7 -> 4).
   task automatic directed_counter_kill();
     for (int k = 0; k < 3; k++) begin
       pass_turn();                              // P1 passes
       do_press(BTN_CENTER, -1);                 // P2 selects its spearman
       do_press(BTN_UP, -1);                     // ... and attacks P1's
+      end_turn_if(1);                           // P2 ends its turn
     end
     do_press(BTN_CENTER, -1);                   // P1 selects
     do_press(BTN_DOWN, -1);                     // ... and attacks with 1 HP left
-    if (unit_table[0].in_use || m_valid[0]) begin
+    if (unit_table[P1_SPEARMAN].in_use || m_valid[P1_SPEARMAN]) begin
       errors++; $display("ERROR: directed test: P1's spearman should die from the counter-attack");
     end
-    if (unit_table[1].hp != 4'd4) begin
-      errors++; $display("ERROR: directed test: P2's spearman has %0d HP, expected 4", unit_table[1].hp);
+    if (unit_table[P2_SPEARMAN].hp != 4'd4) begin
+      errors++; $display("ERROR: directed test: P2's spearman has %0d HP, expected 4", unit_table[P2_SPEARMAN].hp);
     end
     if (errors == 0) $display("directed: attacker with 1 HP dies from the counter-attack, hardware matches the model");
+  endtask
+
+  // After reset: P1 uses all moves (cavalry twice); the turn must pass by itself.
+  task automatic directed_auto_end();
+    int auto_ends;
+    auto_ends = n_turn_auto;
+    do_press(BTN_CENTER, -1); do_press(BTN_RIGHT, -1);   // spearman (5,15) -> (6,15)
+    do_press(BTN_LEFT, -1);   do_press(BTN_LEFT, -1);    // cursor to the archer (4,14)
+    do_press(BTN_UP, -1);
+    do_press(BTN_CENTER, -1); do_press(BTN_UP, -1);      // archer (4,14) -> (4,13)
+    repeat (3) do_press(BTN_DOWN, -1);                   // cursor to the cavalry (4,16)
+    do_press(BTN_CENTER, -1);
+    do_press(BTN_DOWN, -1);                              // cavalry (4,16) -> (4,17), 1 move left
+    do_press(BTN_DOWN, -1);                              // ... -> (4,18), no moves left
+    if (current_player != 1'b1 || n_turn_auto != auto_ends + 1) begin
+      errors++; $display("ERROR: directed test: turn did not pass after all P1 units moved");
+    end
+    if (errors == 0) $display("directed: all three P1 units moved (cavalry twice), turn passed automatically");
   endtask
 
   task automatic restart();
@@ -332,19 +371,20 @@ module tb_game_ctrl;
     model_reset();
     @(negedge clk) compare(0);
 
-    directed_meet(1'b1);           // P1 walks to P2 and defeats it
+    directed_auto_end();           // turn ends automatically
+    restart();
+    directed_meet(1'b1);           // P1 defeats P2's spearman
     restart();
     directed_meet(1'b0);
-    directed_counter_kill();       // P1 attacks with 1 HP and dies
-    // fresh game, units next to each other, then random presses: fights happen randomly too
+    directed_counter_kill();       // attacker dies from the counter-attack
+    // random presses, starting with the spearmen side by side
     restart();
     directed_meet(1'b0);
 
     for (int step = 1; step <= N_PRESSES; step++) begin
       rnd = xorshift(rnd);
       r = int'(rnd % 100);
-      // centre 15%, arrows 85%; arrows are biased per 2000-press "epoch" so
-      // units wander far across the map and eventually meet.
+      // centre 15%, arrows 85%; direction bias changes every 2000 presses
       if (r < 15) b = BTN_CENTER;
       else begin
         rnd = xorshift(rnd);

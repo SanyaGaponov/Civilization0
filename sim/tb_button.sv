@@ -1,11 +1,11 @@
-// Testbench: one button (bouncing, release, repeated presses).
+// Testbench: button (bouncing, release, repeated presses).
 `timescale 1ns/1ps
 
-// Testbench style: blocking "=" in processes is intentional.
+// Blocking "=" in processes is intentional here.
 /* verilator lint_off BLKSEQ */
 module tb_button;
 
-  localparam int LOOK_BITS = 5;             // look every 2^5 = 32 clocks
+  localparam int LOOK_BITS = 5;             // look every 32 clocks
 
   logic clk, rst;
   logic pressed_signal;
@@ -19,7 +19,7 @@ module tb_button;
 
   button #(.LOOK_BITS(LOOK_BITS)) dut (.clk(clk), .rst(rst), .pressed_signal(pressed_signal), .pressed_finally(pressed_finally));
 
-  // count pulses and check that each one lasts exactly one clock
+  // Count pulses; each must last one clock
   always @(posedge clk) begin
     if (pressed_finally) begin
       width++;
@@ -33,12 +33,11 @@ module tb_button;
     end
   end
 
-  // Toggle the input quickly n times (contact bounce), then settle at 'level'.
-  // Total bounce time stays below 32 clocks, like a real button vs. 12.6 ms.
+  // Bounce: toggle n times quickly (under 32 clocks), then settle at 'level'
   task automatic bounce(input int n, input logic level);
     for (int i = 0; i < n; i++) begin
       pressed_signal = ~pressed_signal;
-      repeat (1 + (i % 5)) @(negedge clk);   // 1..5 clocks between bounces
+      repeat (1 + (i % 5)) @(negedge clk);   // 1..5 clocks apart
     end
     pressed_signal = level;
   endtask
@@ -54,7 +53,7 @@ module tb_button;
     repeat (4) @(negedge clk);
     rst = 1'b0;
 
-    // 1. bouncy press, then held: exactly one pulse
+    // 1. bouncy press, then held: one pulse
     bounce(9, 1'b1);
     repeat (200) @(negedge clk);
     expect_pulses(1, "bouncy press, held");
@@ -64,7 +63,7 @@ module tb_button;
     repeat (200) @(negedge clk);
     expect_pulses(1, "bouncy release");
 
-    // 3. three clean presses: three pulses
+    // 3. three clean presses: three more pulses
     repeat (3) begin
       pressed_signal = 1'b1; repeat (80) @(negedge clk);
       pressed_signal = 1'b0; repeat (80) @(negedge clk);

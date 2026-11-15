@@ -1,12 +1,11 @@
-# Civilization0 - common commands. Run from the repo root.
-#
-#   make mem      ASCII map -> mem/map0.mem (+ preview PNG)
-#   make lint     Verilator strict lint of all RTL
-#   make tb       run all testbenches (vga_out, button, game_ctrl)
-#   make sim      simulate one frame of the whole design -> build/frame.png
-#                 press buttons first:  make sim KEYS=CRU  (C U D L R)
-#   make bit      Vivado: synthesize + implement -> build/game_top.bit   (Windows/Linux only)
-#   make program  Vivado: upload the bitstream to the board
+# Run from the repo root.
+#   make mem      maps/map0.txt -> mem/map0.mem (+ preview PNG)
+#   make lint     Verilator lint
+#   make tb       all testbenches
+#   make sim      one frame of the whole design -> build/frame.png
+#                 press buttons first: make sim KEYS=CRU  (C U D L R)
+#   make bit      Vivado: bitstream -> build/game_top.bit (Linux/Windows)
+#   make program  Vivado: program the board
 #   make clean
 
 VERILATOR ?= verilator
@@ -15,7 +14,7 @@ VIVADO    ?= vivado
 MAP       ?= map0
 BUILD     := build
 
-# Design sources, plus the simulation stand-in for the Clocking Wizard IP.
+# Design sources + simulation stand-in for the Clocking Wizard
 SRC := src/game_pkg.sv \
        sim/clk_wiz_0.sv \
        src/video/vga_out.sv \

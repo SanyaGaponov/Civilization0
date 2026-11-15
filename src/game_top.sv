@@ -19,7 +19,7 @@ module game_top
   output logic [15:0] LED
 );
 
-  // 100 MHz -> 83.46 MHz
+  // Pixel clock: 100 MHz -> 83.46 MHz
   logic pixclk, locked;
   clk_wiz_0 u_clk (
     .clk_out1(pixclk),
@@ -27,9 +27,8 @@ module game_top
     .clk_in1 (clk)
   );
 
-  // ---- reset: held while the button is pressed or the clock is not yet stable.
-  // It turns on immediately and turns off on a pixclk edge (after 2 edges),
-  // so the button, which is not aligned to the clock, can't cause trouble.
+  // Reset: on while the button is pressed or the clock is unstable;
+  // released in step with pixclk.
   logic       reset_request_n, rst;
   logic [1:0] reset_sync;
   assign reset_request_n = CPU_RESETN & locked;
@@ -39,6 +38,7 @@ module game_top
   end
   assign rst = reset_sync[1];
 
+  // VGA output
   logic [3:0]        r, g, b;
   logic [10:0]       curr_x;
   logic [9:0]        curr_y;
@@ -57,7 +57,7 @@ module game_top
     .curr_y(curr_y)
   );
 
-  // ---- buttons -> 1-clock press pulses ----
+  // Buttons: one 1-clock pulse per press
   logic [NUM_BUTTONS-1:0] press;
   button u_btn_c (.clk(pixclk), .rst(rst), .pressed_signal(BTNC), .pressed_finally(press[BTN_CENTER]));
   button u_btn_u (.clk(pixclk), .rst(rst), .pressed_signal(BTNU), .pressed_finally(press[BTN_UP]));
@@ -65,7 +65,7 @@ module game_top
   button u_btn_l (.clk(pixclk), .rst(rst), .pressed_signal(BTNL), .pressed_finally(press[BTN_LEFT]));
   button u_btn_r (.clk(pixclk), .rst(rst), .pressed_signal(BTNR), .pressed_finally(press[BTN_RIGHT]));
 
-  // ---- terrain map: one read for game logic, one for drawcon ----
+  // Terrain map: one read for game_ctrl, one for drawcon
   logic [MAP_ADDR_BITS-1:0] target_terrain_addr, tile_terrain_addr;
   logic [TERRAIN_BITS-1:0]  target_terrain, tile_terrain;
   terrain_memory #(.MAP_FILE(MAP_FILE)) u_terrain (
@@ -75,7 +75,7 @@ module game_top
     .draw_data(tile_terrain)
   );
 
-  // ---- game logic ----
+  // Game rules and state
   tile_x_t                    cursor_x;
   tile_y_t                    cursor_y;
   player_t                    current_player;
@@ -96,9 +96,11 @@ module game_top
     .unit_table         (unit_table)
   );
 
+  // Free-running counter: LED blink and unit blink
   logic [25:0] heartbeat;
   always_ff @(posedge pixclk) heartbeat <= heartbeat + 1'b1;
 
+  // Pixel colours
   drawcon u_drawcon (
     .draw_x           (curr_x),
     .draw_y           (curr_y),
@@ -110,12 +112,13 @@ module game_top
     .unit_selected    (unit_selected),
     .selected_unit    (selected_unit),
     .unit_table       (unit_table),
-    .blink            (heartbeat[24]),   // toggles every ~0.2 s
+    .blink            (heartbeat[24]),   // ~0.2 s
     .r                (r),
     .g                (g),
     .b                (b)
   );
 
+  // LEDs: 0 clock locked, 1 heartbeat, 14/15 whose turn
   always_comb begin
     LED     = '0;
     LED[0]  = locked;

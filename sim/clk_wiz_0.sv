@@ -1,4 +1,4 @@
-// Simulation-only stand-in for the Clocking Wizard IP: passes the clock through.
+// Simulation stand-in for the Clocking Wizard: clock passes through.
 module clk_wiz_0 (
   input  logic clk_in1,
   output logic clk_out1,

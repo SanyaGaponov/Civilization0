@@ -8,10 +8,10 @@ import sys
 
 from pngio import write_png
 
-MAP_W, MAP_H = 64, 32          # stored map size (must match the hardware)
-VISIBLE_W, VISIBLE_H = 40, 25  # tiles on screen at 1280x800 (marked red in the preview)
+MAP_W, MAP_H = 64, 32          # stored map size (as in game_pkg.sv)
+VISIBLE_W, VISIBLE_H = 40, 25  # tiles on screen (red frame in the preview)
 
-# char -> (terrain code, 12-bit colour); must match the hardware terrain codes
+# char -> (terrain code, 12-bit colour), as in game_pkg.sv
 LEGEND = {
     "~": (0x0, 0x15A),  # ocean
     ".": (0x1, 0x4A3),  # grass
@@ -57,8 +57,7 @@ def main():
             c = COLOR[grid[py // s][px // s]]
             img += bytes((((c >> 8) & 0xF) * 17, ((c >> 4) & 0xF) * 17, (c & 0xF) * 17))
 
-    # Red border around the part shown on screen (1280x800 -> 40x25 tiles).
-    # Everything outside it is padding that only exists in memory.
+    # Red frame: the part shown on screen; outside it is padding
     vis_w, vis_h = VISIBLE_W * s, VISIBLE_H * s
     for py in range(MAP_H * s):
         for px in range(MAP_W * s):

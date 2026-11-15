@@ -1,4 +1,4 @@
-// Simulation wrapper: VGA pins and constants for the C++ monitor.
+// Simulation wrapper: game_top plus constants for sim_frame.cpp.
 module sim_top
   import game_pkg::*;
 #(
@@ -28,7 +28,7 @@ module sim_top
   );
   /* verilator lint_on PINCONNECTEMPTY */
 
-  // screen timing, as in vga_out (1280x800 at 60 Hz)
+  // Timing, as in vga_out
   assign p_h_sync   = 16'd136;
   assign p_h_bp     = 16'd200;
   assign p_h_active = 16'd1280;

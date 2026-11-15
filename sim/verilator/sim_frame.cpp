@@ -1,4 +1,4 @@
-// Verilator "virtual monitor": checks the VGA output and saves one frame.
+// Virtual monitor: checks the VGA output and saves one frame.
 // Usage: sim_frame out.ppm [KEYS]   (C U D L R = buttons to press first)
 #include <cstdio>
 #include <cstdlib>
@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
   top.rst_n = 1;
   for (int i = 0; i < 10; i++) tick();
 
-  // ---- press the buttons in KEYS, one after another ---------------------------
+  // Press the buttons in KEYS, one after another
   for (const char* k = keys; *k; k++) {
     int bit = -1;
     switch (*k) {
@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
       case 'L': bit = 3; break;  case 'R': bit = 4; break;
       default: std::printf("ignoring unknown key '%c'\n", *k); continue;
     }
-    top.btn = 1u << bit;                   // hold longer than 2^20 clocks (time between button looks)
+    top.btn = 1u << bit;                   // hold longer than one button look (2^20 clocks)
     for (int i = 0; i < (1 << 20) + 16; i++) tick();
     top.btn = 0;                           // release
     for (int i = 0; i < (1 << 20) + 16; i++) tick();
@@ -59,8 +59,7 @@ int main(int argc, char** argv) {
   std::vector<unsigned> img(size_t(HA) * VA, 0);   // 12-bit colours
   long cyc = 0, last_hs = -1, last_vs = -1, hs_w = 0, vs_w = 0;
   int hpos = 0, line = 0, frames_seen = 0, nonblack_blank = 0;
-  // Start from the pins' current state, and only measure pulses whose start
-  // we saw (we may begin watching in the middle of a sync pulse).
+  // Measure only sync pulses whose start we saw
   int prev_hs = top.hs, prev_vs = top.vs;
   bool hs_started = false, vs_started = false;
   const long max_cycles = long(HT) * VT * 4 + 100000;
@@ -70,7 +69,7 @@ int main(int argc, char** argv) {
     cyc++;
     const int hs = top.hs, vs = top.vs;
 
-    // ---- sync measurements -------------------------------------------------
+    // Sync timing
     const bool hs_lead = (hs == HPOL && prev_hs != HPOL);
     const bool vs_lead = (vs == VPOL && prev_vs != VPOL);
     if (hs_lead) hs_started = true;
@@ -97,7 +96,7 @@ int main(int argc, char** argv) {
     }
     prev_hs = hs; prev_vs = vs;
 
-    // ---- pixels (only during the frame after the first vsync) ---------------
+    // Pixels of the frame after the first vsync
     if (frames_seen == 1) {
       const int px = hpos - (HS + HBP);
       const int py = line - (VS + VBP);
@@ -111,7 +110,7 @@ int main(int argc, char** argv) {
   CHECK(frames_seen == 2, "did not see 2 vsync pulses in %ld cycles", cyc);
   CHECK(nonblack_blank == 0, "%d non-black pixels during blanking", nonblack_blank);
 
-  // ---- tile alignment: one terrain colour per tile -----------------------------
+  // Each tile shows one terrain colour
   auto is_terrain = [&](unsigned c) { for (unsigned t : tcol) if (c == t) return true; return false; };
   int bad_tiles = 0;
   for (int ty = 0; ty < VA / 32; ty++)
@@ -129,7 +128,7 @@ int main(int argc, char** argv) {
     }
   CHECK(bad_tiles == 0, "%d tiles mix two terrain colours (pipeline misaligned?)", bad_tiles);
 
-  // ---- both players are on screen (only if the whole map fits) ----------------------
+  // Both players' colours are on screen
   if (HA >= 32 * int(top.p_play_w) && VA >= 32 * int(top.p_play_h)) {
     for (int p = 0; p < 2; p++) {
       long n = 0;

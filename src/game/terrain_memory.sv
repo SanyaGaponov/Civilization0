@@ -1,4 +1,4 @@
-// Terrain map memory (read-only): 64x32 tiles, 4 bits each, two instant reads.
+// Terrain map (read-only): 64x32 tiles, 4 bits each, two instant reads.
 module terrain_memory
   import game_pkg::*;
 #(
@@ -10,7 +10,7 @@ module terrain_memory
   output logic [TERRAIN_BITS-1:0]  draw_data
 );
 
-  logic [TERRAIN_BITS-1:0] tiles [MAP_WIDTH * MAP_HEIGHT];
+  logic [TERRAIN_BITS-1:0] tiles [MAP_WIDTH * MAP_HEIGHT];   // address = {y, x}
 
   initial $readmemh(MAP_FILE, tiles);
 
