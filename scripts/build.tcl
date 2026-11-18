@@ -38,7 +38,7 @@ read_verilog -sv [list \
   $root/src/game/game_ctrl.sv \
   $root/src/game_top.sv \
 ]
-read_mem $root/mem/map0.mem
+read_mem $root/mem/map.mem
 read_mem $root/mem/sprites.mem
 read_xdc $root/constraints/nexys_a7.xdc
 

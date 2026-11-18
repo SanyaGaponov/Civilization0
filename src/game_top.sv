@@ -2,26 +2,32 @@
 module game_top
   import game_pkg::*;
 #(
-  parameter string MAP_FILE    = "map0.mem",
+  parameter string MAP_FILE    = "map.mem",
   parameter string SPRITE_FILE = "sprites.mem"
-)(
-  input  logic        clk,          // 100 MHz
+) (
+  input  logic        clk,         // 100 MHz
   input  logic        CPU_RESETN,
   input  logic        BTNC,
   input  logic        BTNU,
   input  logic        BTND,
   input  logic        BTNL,
   input  logic        BTNR,
-  input  logic [0:0]  SW,           // SW0: jump the cursor to the next own unit
-  output logic [3:0]  pix_r,
-  output logic [3:0]  pix_g,
-  output logic [3:0]  pix_b,
+  input  logic [ 0:0] SW,          // SW0: jump the cursor to the next own unit
+  output logic [ 3:0] pix_r,
+  output logic [ 3:0] pix_g,
+  output logic [ 3:0] pix_b,
   output logic        hsync,
   output logic        vsync,
   output logic [15:0] LED,
-  output logic        CA, CB, CC, CD, CE, CF, CG,   // seven segment segments
-  output logic        DP,                           // decimal point (unused)
-  output logic [7:0]  AN                            // seven segment digit selects
+  output logic        CA,          // seven segment segments a..g
+  output logic        CB,
+  output logic        CC,
+  output logic        CD,
+  output logic        CE,
+  output logic        CF,
+  output logic        CG,
+  output logic        DP,          // decimal point (unused)
+  output logic [ 7:0] AN           // seven segment digit selects
 );
 
   // 100 MHz -> 83.46 MHz
@@ -37,9 +43,9 @@ module game_top
   always_ff @(posedge pixclk) rst <= ~(CPU_RESETN & locked);
 
   // VGA output
-  logic [3:0]        r, g, b;
-  logic [10:0]       curr_x;
-  logic [9:0]        curr_y;
+  logic [3:0] r, g, b;
+  logic [10:0] curr_x;
+  logic [ 9:0] curr_y;
   vga_out u_vga_out (
     .clk   (pixclk),
     .rst   (rst),
@@ -57,16 +63,43 @@ module game_top
 
   // Buttons
   logic [NUM_BUTTONS-1:0] press;
-  button u_btn_c (.clk(pixclk), .rst(rst), .pressed_signal(BTNC), .pressed_finally(press[BTN_CENTER]));
-  button u_btn_u (.clk(pixclk), .rst(rst), .pressed_signal(BTNU), .pressed_finally(press[BTN_UP]));
-  button u_btn_d (.clk(pixclk), .rst(rst), .pressed_signal(BTND), .pressed_finally(press[BTN_DOWN]));
-  button u_btn_l (.clk(pixclk), .rst(rst), .pressed_signal(BTNL), .pressed_finally(press[BTN_LEFT]));
-  button u_btn_r (.clk(pixclk), .rst(rst), .pressed_signal(BTNR), .pressed_finally(press[BTN_RIGHT]));
+  button u_btn_c (
+    .clk            (pixclk),
+    .rst            (rst),
+    .pressed_signal (BTNC),
+    .pressed_finally(press[BTN_CENTER])
+  );
+  button u_btn_u (
+    .clk            (pixclk),
+    .rst            (rst),
+    .pressed_signal (BTNU),
+    .pressed_finally(press[BTN_UP])
+  );
+  button u_btn_d (
+    .clk            (pixclk),
+    .rst            (rst),
+    .pressed_signal (BTND),
+    .pressed_finally(press[BTN_DOWN])
+  );
+  button u_btn_l (
+    .clk            (pixclk),
+    .rst            (rst),
+    .pressed_signal (BTNL),
+    .pressed_finally(press[BTN_LEFT])
+  );
+  button u_btn_r (
+    .clk            (pixclk),
+    .rst            (rst),
+    .pressed_signal (BTNR),
+    .pressed_finally(press[BTN_RIGHT])
+  );
 
   // Terrain map: one read for game_ctrl, one for drawcon
   logic [MAP_ADDR_BITS-1:0] target_terrain_addr, tile_terrain_addr;
-  logic [TERRAIN_BITS-1:0]  target_terrain, tile_terrain;
-  terrain_memory #(.MAP_FILE(MAP_FILE)) u_terrain (
+  logic [TERRAIN_BITS-1:0] target_terrain, tile_terrain;
+  terrain_memory #(
+    .MAP_FILE(MAP_FILE)
+  ) u_terrain (
     .game_addr(target_terrain_addr),
     .game_data(target_terrain),
     .draw_addr(tile_terrain_addr),
@@ -75,8 +108,10 @@ module game_top
 
   // Sprites: one read for units, one for cities
   logic [SPRITE_ADDR_BITS-1:0] unit_sprite_addr, city_sprite_addr;
-  logic [PIXEL_BITS-1:0]       unit_sprite_pixel, city_sprite_pixel;
-  sprite_memory #(.SPRITE_FILE(SPRITE_FILE)) u_sprites (
+  logic [PIXEL_BITS-1:0] unit_sprite_pixel, city_sprite_pixel;
+  sprite_memory #(
+    .SPRITE_FILE(SPRITE_FILE)
+  ) u_sprites (
     .unit_addr (unit_sprite_addr),
     .unit_pixel(unit_sprite_pixel),
     .city_addr (city_sprite_addr),
@@ -84,15 +119,20 @@ module game_top
   );
 
   // Game rules and state
-  logic [MAP_X_BITS-1:0]      cursor_x;
-  logic [MAP_Y_BITS-1:0]      cursor_y;
+  logic [     MAP_X_BITS-1:0] cursor_x;
+  logic [     MAP_Y_BITS-1:0] cursor_y;
   logic                       current_player;
   logic                       unit_selected;
   logic [UNIT_INDEX_BITS-1:0] selected_unit;
-  unit   [MAX_UNITS-1:0]      unit_table;
+  unit  [      MAX_UNITS-1:0] unit_table;
   // SW0: one pulse per flip
-  logic jump;
-  slide_switch u_sw0 (.clk(pixclk), .rst(rst), .switch_signal(SW[0]), .flipped(jump));
+  logic                       jump;
+  slide_switch u_sw0 (
+    .clk          (pixclk),
+    .rst          (rst),
+    .switch_signal(SW[0]),
+    .flipped      (jump)
+  );
 
   game_ctrl u_game (
     .clk                (pixclk),
@@ -131,10 +171,10 @@ module game_top
   );
 
   // Seven segment display: HP of the unit + of the player
-  logic [UNIT_INDEX_BITS:0] unit_at_cursor;             // {found, index}
-  logic [HP_BITS-1:0]       cursor_hp;
-  logic [3:0]               hp_tens, hp_ones, turn_digit;
-  logic [7:0]               digit_en;
+  logic [UNIT_INDEX_BITS:0] unit_at_cursor;  // {found, index}
+  logic [      HP_BITS-1:0] cursor_hp;
+  logic [3:0] hp_tens, hp_ones, turn_digit;
+  logic [7:0] digit_en;
   assign unit_at_cursor = find_unit(unit_table, cursor_x, cursor_y);
   assign cursor_hp      = unit_table[unit_at_cursor[UNIT_INDEX_BITS-1:0]].hp;
 
@@ -176,7 +216,7 @@ module game_top
     .an  (AN)
   );
 
-  assign DP = 1'b1;   // active low, so the point stays off
+  assign DP = 1'b1;  // active low, so the point stays off
 
   // LEDs: 0 clock locked, 14/15 whose turn
   always_comb begin

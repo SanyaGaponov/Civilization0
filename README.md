@@ -37,10 +37,10 @@ src/io/button.sv              debounce one button -> 1-clock press pulse
 src/io/slide_switch.sv        debounce one switch -> 1-clock pulse per flip
 src/io/sevenseg.sv            one digit: 4-bit value -> segment pattern
 src/io/multidigit.sv          drives the eight shared digits in turn
-src/game/terrain_memory.sv    terrain map, loaded from mem/map0.mem
+src/game/terrain_memory.sv    terrain map, loaded from mem/map.mem
 src/game/game_ctrl.sv         game rules
 constraints/nexys_a7.xdc      pins
-maps/map0.txt                 the map as text
+maps/map.txt                  the map as text
 sprites/                      unit and city sprites as text
 mem/                          generated memory files
 scripts/                      build, program, map and sprite generators
@@ -56,6 +56,13 @@ make sim KEYS=CRU        # press Centre, Right, Up before taking the frame
 ```
 
 Each test prints `PASS` or `FAIL`.
+
+Format the code before committing (needs `verible-verilog-format` on the PATH,
+from https://github.com/chipsalliance/verible/releases):
+
+```sh
+make format
+```
 
 ## Build and program (Linux/Windows with Vivado)
 
@@ -85,7 +92,7 @@ Everything runs on this one clock.
 
 ## Map
 
-Edit `maps/map0.txt` (32×20 characters) and run `make mem`. Keep the tiles
+Edit `maps/map.txt` (32×20 characters) and run `make mem`. Keep the tiles
 around the cities (`src/game_pkg.sv`) as land.
 
 | char | `~` | `.` | `,` | `f` | `h` | `^` |

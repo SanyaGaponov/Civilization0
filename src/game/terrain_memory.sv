@@ -2,15 +2,15 @@
 module terrain_memory
   import game_pkg::*;
 #(
-  parameter string MAP_FILE = "map0.mem"
-)(
-  input  logic [MAP_ADDR_BITS-1:0] game_addr,   // read for game_ctrl
-  output logic [TERRAIN_BITS-1:0]  game_data,
-  input  logic [MAP_ADDR_BITS-1:0] draw_addr,   // read for drawcon
-  output logic [TERRAIN_BITS-1:0]  draw_data
+  parameter string MAP_FILE = "map.mem"
+) (
+  input  logic [MAP_ADDR_BITS-1:0] game_addr,  // read for game_ctrl
+  output logic [ TERRAIN_BITS-1:0] game_data,
+  input  logic [MAP_ADDR_BITS-1:0] draw_addr,  // read for drawcon
+  output logic [ TERRAIN_BITS-1:0] draw_data
 );
 
-  logic [TERRAIN_BITS-1:0] tiles [MAP_WIDTH * MAP_HEIGHT];   // address = {y, x}
+  logic [TERRAIN_BITS-1:0] tiles[MAP_WIDTH * MAP_HEIGHT];  // address = {y, x}
 
   initial $readmemh(MAP_FILE, tiles);
 

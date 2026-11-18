@@ -8,18 +8,30 @@
 module multidigit (
   input  logic       clk,
   input  logic       rst,
-  input  logic       tick,                                   // step to the next digit
-  input  logic [3:0] dig0, dig1, dig2, dig3,
-  input  logic [3:0] dig4, dig5, dig6, dig7,
-  input  logic [7:0] en,                                      // 0 = leave that digit dark
-  output logic       a, b, c, d, e, f, g,
+  input  logic       tick,  // step to the next digit
+  input  logic [3:0] dig0,  // rightmost digit
+  input  logic [3:0] dig1,
+  input  logic [3:0] dig2,
+  input  logic [3:0] dig3,
+  input  logic [3:0] dig4,
+  input  logic [3:0] dig5,
+  input  logic [3:0] dig6,
+  input  logic [3:0] dig7,
+  input  logic [7:0] en,    // 0 = leave that digit dark
+  output logic       a,     // segments a..g
+  output logic       b,
+  output logic       c,
+  output logic       d,
+  output logic       e,
+  output logic       f,
+  output logic       g,
   output logic [7:0] an
 );
 
   // Which digit is driven right now
   logic [2:0] cnt;
   always_ff @(posedge clk) begin
-    if (rst)       cnt <= 3'd0;
+    if (rst) cnt <= 3'd0;
     else if (tick) cnt <= cnt + 3'd1;
   end
 

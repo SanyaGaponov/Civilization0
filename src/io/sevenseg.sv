@@ -12,7 +12,7 @@ module sevenseg (
 );
 
   always_comb begin
-    case (num)                                //  abcdefg
+    case (num)  //  abcdefg
       4'h0:    {a, b, c, d, e, f, g} = 7'b0000001;
       4'h1:    {a, b, c, d, e, f, g} = 7'b1001111;
       4'h2:    {a, b, c, d, e, f, g} = 7'b0010010;
@@ -29,7 +29,7 @@ module sevenseg (
       4'hD:    {a, b, c, d, e, f, g} = 7'b1000010;
       4'hE:    {a, b, c, d, e, f, g} = 7'b0110000;
       4'hF:    {a, b, c, d, e, f, g} = 7'b0111000;
-      default: {a, b, c, d, e, f, g} = 7'b1111111;   // all segments off
+      default: {a, b, c, d, e, f, g} = 7'b1111111;  // all segments off
     endcase
   end
 

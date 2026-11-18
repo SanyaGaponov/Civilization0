@@ -1,17 +1,18 @@
 # Run from the repo root.
-#   make mem      maps/map0.txt, sprites/*.txt -> mem/*.mem (+ preview PNGs)
+#   make mem      maps/map.txt, sprites/*.txt -> mem/*.mem (+ preview PNGs)
 #   make lint     Verilator lint
 #   make tb       all testbenches
 #   make sim      one frame of the whole design -> build/frame.png
 #                 press buttons first: make sim KEYS=CRU  (C U D L R)
 #   make bit      Vivado: bitstream -> build/game_top.bit (Linux/Windows)
 #   make program  Vivado: program the board
+#   make format   Verible: format all SystemVerilog files
 #   make clean
 
 VERILATOR ?= verilator
 PYTHON    ?= python3
 VIVADO    ?= vivado
-MAP       ?= map0
+MAP       ?= map
 BUILD     := build
 # Sprite order = unit kind (spearman, archer, cavalry), then the city
 SPRITES   := sprites/spearman.txt sprites/archer.txt sprites/cavalry.txt sprites/city.txt
@@ -30,7 +31,7 @@ SRC := src/game_pkg.sv \
        src/game/game_ctrl.sv \
        src/game_top.sv
 
-.PHONY: all mem lint tb tb_vga_out tb_button tb_slide_switch tb_sevenseg tb_multidigit tb_game_ctrl sim bit program clean
+.PHONY: all mem lint tb tb_button tb_game_ctrl sim bit program format clean
 
 all: mem lint tb sim
 
@@ -48,37 +49,13 @@ lint:
 
 TBFLAGS := --binary --timing --timescale 1ns/1ps -Wall
 
-tb: tb_vga_out tb_button tb_slide_switch tb_sevenseg tb_multidigit tb_game_ctrl
-
-tb_vga_out:
-	@mkdir -p $(BUILD)
-	$(VERILATOR) $(TBFLAGS) --top-module tb_vga_out -Mdir $(BUILD)/tb_vga_out -o tb \
-	    src/game_pkg.sv src/video/vga_out.sv sim/tb_vga_out.sv
-	$(BUILD)/tb_vga_out/tb
+tb: tb_button tb_game_ctrl
 
 tb_button:
 	@mkdir -p $(BUILD)
 	$(VERILATOR) $(TBFLAGS) --top-module tb_button -Mdir $(BUILD)/tb_button -o tb \
 	    src/io/button.sv sim/tb_button.sv
 	$(BUILD)/tb_button/tb
-
-tb_slide_switch:
-	@mkdir -p $(BUILD)
-	$(VERILATOR) $(TBFLAGS) --top-module tb_slide_switch -Mdir $(BUILD)/tb_slide_switch -o tb \
-	    src/io/slide_switch.sv sim/tb_slide_switch.sv
-	$(BUILD)/tb_slide_switch/tb
-
-tb_sevenseg:
-	@mkdir -p $(BUILD)
-	$(VERILATOR) $(TBFLAGS) --top-module tb_sevenseg -Mdir $(BUILD)/tb_sevenseg -o tb \
-	    src/io/sevenseg.sv sim/tb_sevenseg.sv
-	$(BUILD)/tb_sevenseg/tb
-
-tb_multidigit:
-	@mkdir -p $(BUILD)
-	$(VERILATOR) $(TBFLAGS) --top-module tb_multidigit -Mdir $(BUILD)/tb_multidigit -o tb \
-	    src/io/sevenseg.sv src/io/multidigit.sv sim/tb_multidigit.sv
-	$(BUILD)/tb_multidigit/tb
 
 tb_game_ctrl: mem
 	@mkdir -p $(BUILD)
@@ -102,6 +79,16 @@ bit: mem
 
 program:
 	$(VIVADO) -mode batch -nojournal -nolog -source scripts/program.tcl
+
+# Formatting (needs Verible)
+VERIBLE_FORMAT ?= verible-verilog-format
+FORMAT_FLAGS   := --indentation_spaces=2 --wrap_spaces=2 --column_limit=110 \
+                  --port_declarations_alignment=align --named_port_alignment=align \
+                  --module_net_variable_alignment=align --assignment_statement_alignment=align \
+                  --formal_parameters_alignment=align --struct_union_members_alignment=align \
+                  --case_items_alignment=align --enum_assignment_statement_alignment=align
+format:
+	$(VERIBLE_FORMAT) $(FORMAT_FLAGS) --inplace src/*.sv src/*/*.sv sim/*.sv sim/verilator/*.sv
 
 clean:
 	rm -rf $(BUILD) .Xil obj_dir

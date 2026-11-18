@@ -1,23 +1,35 @@
 // Testbench: button (bouncing, release, repeated presses).
-`timescale 1ns/1ps
+`timescale 1ns / 1ps
 
 // Blocking "=" in processes is intentional here.
 /* verilator lint_off BLKSEQ */
 module tb_button;
 
-  localparam int LOOK_BITS = 5;             // look every 32 clocks
+  localparam int LOOK_BITS = 5;  // look every 32 clocks
 
   logic clk, rst;
   logic pressed_signal;
   logic pressed_finally;
-  int   pulses, errors, width;
+  int pulses, errors, width;
 
   initial begin
-    clk = 1'b0; rst = 1'b1; pressed_signal = 1'b0; pulses = 0; errors = 0; width = 0;
+    clk            = 1'b0;
+    rst            = 1'b1;
+    pressed_signal = 1'b0;
+    pulses         = 0;
+    errors         = 0;
+    width          = 0;
   end
   always #5 clk = ~clk;
 
-  button #(.LOOK_BITS(LOOK_BITS)) dut (.clk(clk), .rst(rst), .pressed_signal(pressed_signal), .pressed_finally(pressed_finally));
+  button #(
+    .LOOK_BITS(LOOK_BITS)
+  ) dut (
+    .clk            (clk),
+    .rst            (rst),
+    .pressed_signal (pressed_signal),
+    .pressed_finally(pressed_finally)
+  );
 
   // Count pulses; each must last one clock
   always @(posedge clk) begin
@@ -37,7 +49,7 @@ module tb_button;
   task automatic bounce(input int n, input logic level);
     for (int i = 0; i < n; i++) begin
       pressed_signal = ~pressed_signal;
-      repeat (1 + (i % 5)) @(negedge clk);   // 1..5 clocks apart
+      repeat (1 + (i % 5)) @(negedge clk);  // 1..5 clocks apart
     end
     pressed_signal = level;
   endtask
@@ -65,13 +77,15 @@ module tb_button;
 
     // 3. three clean presses: three more pulses
     repeat (3) begin
-      pressed_signal = 1'b1; repeat (80) @(negedge clk);
-      pressed_signal = 1'b0; repeat (80) @(negedge clk);
+      pressed_signal = 1'b1;
+      repeat (80) @(negedge clk);
+      pressed_signal = 1'b0;
+      repeat (80) @(negedge clk);
     end
     expect_pulses(4, "three clean presses");
 
     if (errors == 0) $display("PASS: tb_button (bounce, release, repeated presses)");
-    else             $display("FAIL: tb_button, %0d errors", errors);
+    else $display("FAIL: tb_button, %0d errors", errors);
     $finish;
   end
 
