@@ -1,4 +1,3 @@
-// One slide switch: skip bouncing, one pulse per flip (either direction).
 module slide_switch #(
   parameter int LOOK_BITS = 20  // look every 2^20 clocks (~12.6 ms)
 ) (
