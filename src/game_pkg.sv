@@ -139,6 +139,22 @@ package game_pkg;
     return r;
   endfunction
 
+  // Next unit of 'player' in the table after slot 'last': returns {found, index}.
+  // slots and enemy units are skipped. The index is UNIT_INDEX_BITS wide, so
+  function automatic logic [UNIT_INDEX_BITS:0] find_next_own_unit(
+      input unit  [MAX_UNITS-1:0]       u,
+      input logic                       player,
+      input logic [UNIT_INDEX_BITS-1:0] last);
+    logic [UNIT_INDEX_BITS:0]   r;
+    logic [UNIT_INDEX_BITS-1:0] idx;
+    r = '0;
+    for (int k = MAX_UNITS; k >= 1; k--) begin   // backwards, so the nearest slot wins
+      idx = last + UNIT_INDEX_BITS'(k);
+      if (u[idx].in_use && u[idx].player_owner == player) r = {1'b1, idx};
+    end
+    return r;
+  endfunction
+
   // -------------------------------------------- SPRITES --------------------------------------------
 
   // Sprites: 16x16 pixels, drawn 2x; one 4-bit palette index per pixel.

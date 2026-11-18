@@ -4,6 +4,7 @@ module game_ctrl
   input  logic                       clk,
   input  logic                       rst,
   input  logic [NUM_BUTTONS-1:0]     press,
+  input  logic                       sw_jump,     // SW0: every flip jumps to the next own unit
   // terrain lookup
   output logic [MAP_ADDR_BITS-1:0]   target_terrain_addr,
   input  logic [TERRAIN_BITS-1:0]    target_terrain,
@@ -77,6 +78,15 @@ module game_ctrl
   logic [HP_BITS-1:0] attacker_damage;     // HP the selected unit loses when attacking
   assign attacker_damage = counter_damage(unit_table[selected_unit].unit_type);
 
+  
+  logic sw_sync1, sw_sync2, sw_prev, sw_flip;
+  assign sw_flip = sw_sync2 != sw_prev;            // one clock wide, both directions count
+
+  // Slot the cursor jumped to last time, and the next own unit after it
+  logic [UNIT_INDEX_BITS-1:0] last_jump;
+  logic [UNIT_INDEX_BITS:0]   next_own_unit;       // {found, index}
+  assign next_own_unit = find_next_own_unit(unit_table, current_player, last_jump);
+
   // Any other own unit with moves left?
   logic other_units_can_move;
   always_comb begin
@@ -111,7 +121,17 @@ module game_ctrl
       for (int i = 0; i < MAX_UNITS; i++) unit_table[i] <= initial_unit(i);
       cursor_x       <= P1_START_UNIT.x;
       cursor_y       <= P1_START_UNIT.y;
+      sw_sync1       <= 1'b0;
+      sw_sync2       <= 1'b0;
+      sw_prev        <= 1'b0;
+      last_jump      <= UNIT_INDEX_BITS'(MAX_UNITS - 1);   // first flip starts at slot 0
     end else begin
+      // The switch is followed every clock, so a flip made while a unit is
+      // selected is simply lost, not remembered for later.
+      sw_sync1 <= sw_jump;
+      sw_sync2 <= sw_sync1;
+      sw_prev  <= sw_sync2;
+
       case (state)
         S_PLAY: begin
           if (!unit_selected) begin // cursor mode
@@ -132,6 +152,11 @@ module game_ctrl
                 state <= S_END_TURN;              // empty tile: end turn
               end
               // city: nothing yet
+            end else if (sw_flip && next_own_unit[UNIT_INDEX_BITS]) begin
+              // SW0 flipped: move the cursor onto the next own unit 
+              cursor_x  <= unit_table[next_own_unit[UNIT_INDEX_BITS-1:0]].x;
+              cursor_y  <= unit_table[next_own_unit[UNIT_INDEX_BITS-1:0]].y;
+              last_jump <= next_own_unit[UNIT_INDEX_BITS-1:0];
             end
           end else begin
             // unit selected
@@ -174,9 +199,10 @@ module game_ctrl
           for (int i = 0; i < MAX_UNITS; i++)
             if (unit_table[i].in_use && unit_table[i].player_owner == ~current_player)
               unit_table[i].moves_left <= moves_per_turn(unit_table[i].unit_type);
-          cursor_x <= next_player_start_x;
-          cursor_y <= next_player_start_y;
-          state    <= S_PLAY;
+          cursor_x  <= next_player_start_x;
+          cursor_y  <= next_player_start_y;
+          last_jump <= UNIT_INDEX_BITS'(MAX_UNITS - 1);   // new player: start at slot 0
+          state     <= S_PLAY;
         end
 
         default: state <= S_PLAY;

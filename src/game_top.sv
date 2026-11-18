@@ -12,6 +12,7 @@ module game_top
   input  logic        BTND,
   input  logic        BTNL,
   input  logic        BTNR,
+  input  logic [0:0]  SW,           // SW0: jump the cursor to the next own unit
   output logic [3:0]  pix_r,
   output logic [3:0]  pix_g,
   output logic [3:0]  pix_b,
@@ -100,6 +101,7 @@ module game_top
     .clk                (pixclk),
     .rst                (rst),
     .press              (press),
+    .sw_jump            (SW[0]),
     .target_terrain_addr(target_terrain_addr),
     .target_terrain     (target_terrain),
     .cursor_x           (cursor_x),

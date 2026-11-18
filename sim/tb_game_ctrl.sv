@@ -15,6 +15,7 @@ module tb_game_ctrl;
 
   // Design under test
   logic [NUM_BUTTONS-1:0]     press;
+  logic                       sw_jump;
   logic [MAP_ADDR_BITS-1:0]   target_terrain_addr;
   logic [TERRAIN_BITS-1:0]    target_terrain;
   logic [MAP_X_BITS-1:0]      cursor_x;
@@ -29,7 +30,7 @@ module tb_game_ctrl;
     .game_addr(target_terrain_addr), .game_data(target_terrain), .draw_addr('0), .draw_data());
   /* verilator lint_on PINCONNECTEMPTY */
 
-  game_ctrl dut (.clk(clk), .rst(rst), .press(press),
+  game_ctrl dut (.clk(clk), .rst(rst), .press(press), .sw_jump(sw_jump),
                  .target_terrain_addr(target_terrain_addr), .target_terrain(target_terrain),
                  .cursor_x(cursor_x), .cursor_y(cursor_y), .current_player(current_player),
                  .unit_selected(unit_selected), .selected_unit(selected_unit),
@@ -41,13 +42,13 @@ module tb_game_ctrl;
   bit  m_valid [MAX_UNITS], m_player_owner [MAX_UNITS];
   logic [1:0] m_unit_type [MAX_UNITS];
   bit  m_player, m_sel;
-  int  m_sidx, m_cx, m_cy;
+  int  m_sidx, m_cx, m_cy, m_last_jump;
 
   int errors;
   // coverage counters
   int n_cursor, n_cursor_edge, n_select, n_deselect, n_move, n_blk_terrain,
       n_blk_unit, n_blk_city, n_blk_edge, n_turn_manual, n_turn_auto, n_c_city,
-      n_attack, n_kill;
+      n_attack, n_kill, n_jump, n_jump_ignored;
 
   function automatic int unit_at(int x, int y);
     for (int i = 0; i < MAX_UNITS; i++)
@@ -90,11 +91,13 @@ module tb_game_ctrl;
     end
     m_player = 0; m_sel = 0; m_sidx = 0;
     m_cx = m_x[0]; m_cy = m_y[0];
+    m_last_jump = MAX_UNITS - 1;          // first flip starts the search at slot 0
   endtask
 
   task automatic model_end_turn();
-    m_player = !m_player;
-    m_sel    = 0;
+    m_player    = !m_player;
+    m_sel       = 0;
+    m_last_jump = MAX_UNITS - 1;
     m_cx = int'(city_x(m_player)); m_cy = int'(city_y(m_player));
     for (int i = MAX_UNITS - 1; i >= 0; i--)
       if (m_valid[i] && m_player_owner[i] == m_player) begin
@@ -110,6 +113,20 @@ module tb_game_ctrl;
         m_unit_type[i] = U_SPEARMAN;
       end
     n_kill++;
+  endtask
+
+  // SW0 flipped: cursor to the next own unit, skipping empty and enemy slots.
+  // Ignored while a unit is selected.
+  task automatic model_flip();
+    int idx;
+    if (m_sel) begin n_jump_ignored++; return; end
+    for (int k = 1; k <= MAX_UNITS; k++) begin
+      idx = (m_last_jump + k) % MAX_UNITS;
+      if (m_valid[idx] && int'(m_player_owner[idx]) == int'(m_player)) begin
+        m_cx = m_x[idx]; m_cy = m_y[idx]; m_last_jump = idx; n_jump++;
+        return;
+      end
+    end
   endtask
 
   task automatic model_press(int b);
@@ -210,6 +227,15 @@ module tb_game_ctrl;
     @(negedge clk) press = '0;
     repeat (8) @(negedge clk);            // let the design settle
     model_press(b);
+    compare(step);
+  endtask
+
+  // Flip SW0 (either direction) and check the result. The design needs two
+  // clocks to copy the switch into its own clock, so settle for a while.
+  task automatic do_flip(int step);
+    @(negedge clk) sw_jump = ~sw_jump;
+    repeat (10) @(negedge clk);
+    model_flip();
     compare(step);
   endtask
 
@@ -350,8 +376,72 @@ module tb_game_ctrl;
     if (errors == 0) $display("directed: all P1 moves used (spearman 2, archer 2, cavalry 4), turn passed automatically");
   endtask
 
+  // SW0: the cursor cycles through the player's own units.
+  // Run straight after a reset: player 1, cursor on slot 0, nothing selected.
+  task automatic directed_jump();
+    int cx0, cy0;
+    for (int k = 0; k < 3; k++) begin
+      // flip 1 -> slot 0 (the cursor is already there), flip 2 -> slot 1, flip 3 -> slot 2
+      do_flip(-1);
+      if (int'(cursor_x) != int'(unit_table[k].x) || int'(cursor_y) != int'(unit_table[k].y)) begin
+        errors++;
+        $display("ERROR: flip %0d put the cursor at (%0d,%0d), expected unit %0d at (%0d,%0d)",
+                 k + 1, cursor_x, cursor_y, k, unit_table[k].x, unit_table[k].y);
+      end
+    end
+    do_flip(-1);                       // slots 3-5 are the enemy, 6-7 are empty: wrap to slot 0
+    if (int'(cursor_x) != int'(unit_table[0].x) || int'(cursor_y) != int'(unit_table[0].y)) begin
+      errors++; $display("ERROR: the fourth flip should wrap back to unit 0");
+    end
+
+    // a flip is ignored while a unit is selected
+    cx0 = int'(cursor_x); cy0 = int'(cursor_y);
+    do_press(BTN_CENTER, -1);          // select the unit under the cursor
+    if (!unit_selected) begin errors++; $display("ERROR: jump test could not select unit 0"); end
+    do_flip(-1);
+    if (int'(cursor_x) != cx0 || int'(cursor_y) != cy0 || !unit_selected) begin
+      errors++; $display("ERROR: a flip must do nothing while a unit is selected");
+    end
+    do_press(BTN_CENTER, -1);          // deselect
+
+    // a new turn starts the cycle again, now with player 2's units
+    pass_turn();
+    do_flip(-1);                       // -> slot 3 (where the cursor already is)
+    if (int'(cursor_x) != int'(unit_table[3].x) || int'(cursor_y) != int'(unit_table[3].y)) begin
+      errors++; $display("ERROR: after the turn change the first flip should find unit 3");
+    end
+    do_flip(-1);                       // -> slot 4
+    if (int'(cursor_x) != int'(unit_table[4].x) || int'(cursor_y) != int'(unit_table[4].y)) begin
+      errors++; $display("ERROR: the second flip of player 2 should find unit 4");
+    end
+    if (errors == 0) $display("directed: SW0 cycles through own units, wraps, and is ignored while selecting");
+  endtask
+
+  // After directed_meet(1): player 2's spearman (slot 3) is dead, so player 2's
+  // cycle must skip it and visit only slots 4 and 5.
+  task automatic directed_jump_dead();
+    end_turn_if(0);                    // make sure it is player 2's turn
+    if (unit_table[P2_SPEARMAN].in_use) begin
+      errors++; $display("ERROR: jump test expects slot %0d to be empty", P2_SPEARMAN);
+    end
+    do_flip(-1);                       // slot 3 is gone -> slot 4
+    if (int'(cursor_x) != int'(unit_table[4].x) || int'(cursor_y) != int'(unit_table[4].y)) begin
+      errors++; $display("ERROR: the jump did not skip the defeated unit in slot %0d", P2_SPEARMAN);
+    end
+    do_flip(-1);                       // -> slot 5
+    if (int'(cursor_x) != int'(unit_table[5].x) || int'(cursor_y) != int'(unit_table[5].y)) begin
+      errors++; $display("ERROR: the second flip should find unit 5");
+    end
+    do_flip(-1);                       // wrap: back to slot 4, still skipping slot 3
+    if (int'(cursor_x) != int'(unit_table[4].x) || int'(cursor_y) != int'(unit_table[4].y)) begin
+      errors++; $display("ERROR: the wrap should come back to unit 4");
+    end
+    if (errors == 0) $display("directed: the jump skips a defeated unit");
+  endtask
+
   task automatic restart();
     rst = 1'b1;
+    sw_jump = 1'b0;                    // no flip while the design is in reset
     repeat (2) @(negedge clk);
     rst = 1'b0;
     model_reset();
@@ -361,21 +451,26 @@ module tb_game_ctrl;
   initial begin
     int b, r;
     press = '0;
+    sw_jump = 1'b0;
     errors = 0;
     rnd = 32'h1234_5678;
     $readmemh(MAP_FILE, map);
     n_cursor = 0; n_cursor_edge = 0; n_select = 0; n_deselect = 0; n_move = 0;
     n_blk_terrain = 0; n_blk_unit = 0; n_blk_city = 0; n_blk_edge = 0;
     n_turn_manual = 0; n_turn_auto = 0; n_c_city = 0; n_attack = 0; n_kill = 0;
+    n_jump = 0; n_jump_ignored = 0;
 
     repeat (4) @(negedge clk);
     rst = 1'b0;
     model_reset();
     @(negedge clk) compare(0);
 
+    directed_jump();               // SW0 jumps the cursor to the next own unit
+    restart();
     directed_auto_end();           // turn ends automatically
     restart();
     directed_meet(1'b1);           // P1 defeats P2's spearman
+    directed_jump_dead();          // ... and the jump skips the empty slot
     restart();
     directed_meet(1'b0);
     directed_counter_kill();       // attacker dies from the counter-attack
@@ -386,25 +481,30 @@ module tb_game_ctrl;
     for (int step = 1; step <= N_PRESSES; step++) begin
       rnd = xorshift(rnd);
       r = int'(rnd % 100);
-      // centre 15%, arrows 85%; direction bias changes every 2000 presses
-      if (r < 15) b = BTN_CENTER;
-      else begin
-        rnd = xorshift(rnd);
-        b = 1 + int'(rnd % 4);
-        if (rnd[7:6] == 2'b00) b = 1 + ((step / 2000) % 4);
+      // SW0 flip 5%, centre 15%, arrows 80%; direction bias changes every 2000 presses
+      if (r < 5) begin
+        do_flip(step);
+      end else begin
+        if (r < 20) b = BTN_CENTER;
+        else begin
+          rnd = xorshift(rnd);
+          b = 1 + int'(rnd % 4);
+          if (rnd[7:6] == 2'b00) b = 1 + ((step / 2000) % 4);
+        end
+        do_press(b, step);
       end
-      do_press(b, step);
     end
 
     $display("coverage: cursor moves %0d, cursor at edge %0d, selects %0d, deselects %0d,",
              n_cursor, n_cursor_edge, n_select, n_deselect);
     $display("          unit moves %0d, blocked by terrain %0d / unit %0d / enemy city %0d / edge %0d,",
              n_move, n_blk_terrain, n_blk_unit, n_blk_city, n_blk_edge);
-    $display("          turn ends manual %0d / auto %0d, centre on city %0d, attacks %0d, kills %0d",
+    $display("          turn ends manual %0d / auto %0d, centre on city %0d, attacks %0d, kills %0d,",
              n_turn_manual, n_turn_auto, n_c_city, n_attack, n_kill);
+    $display("          SW0 jumps %0d, flips ignored while selecting %0d", n_jump, n_jump_ignored);
     if (n_cursor == 0 || n_cursor_edge == 0 || n_select == 0 || n_deselect == 0 || n_move == 0 ||
         n_blk_terrain == 0 || n_blk_city == 0 || n_attack == 0 || n_kill == 0 ||
-        n_turn_manual == 0 || n_turn_auto == 0) begin
+        n_turn_manual == 0 || n_turn_auto == 0 || n_jump == 0 || n_jump_ignored == 0) begin
       errors++;
       $display("ERROR: some rules were never exercised (see coverage above)");
     end

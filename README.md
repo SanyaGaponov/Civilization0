@@ -20,6 +20,8 @@ The cursor colour and LEDs 14/15 show whose turn it is.
   is removed. Attacking uses all remaining moves.
 - HP: archers 6, others 10, shown as a bar under the unit (green = left, red = lost),
   and as a number on the seven segment display.
+- Flip **SW0** (either way) to jump the cursor to your next unit; flip again
+  for the one after that. It only moves the cursor, so press Centre to select.
 - The turn ends by itself when no unit has moves left.
 - **CPU RESET** restarts the game.
 

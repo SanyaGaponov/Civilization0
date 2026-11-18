@@ -24,6 +24,7 @@ module sim_top
     .clk       (clk),
     .CPU_RESETN(rst_n),
     .BTNC(btn[0]), .BTNU(btn[1]), .BTND(btn[2]), .BTNL(btn[3]), .BTNR(btn[4]),
+    .SW  (1'b0),                  // SW0 not used by the frame test
     .pix_r(r), .pix_g(g), .pix_b(b),
     .hsync(hs), .vsync(vs),
     .LED(),
