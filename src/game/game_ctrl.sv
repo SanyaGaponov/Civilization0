@@ -1,4 +1,3 @@
-// Game rules: cursor, selection, movement, fighting and turns.
 module game_ctrl
   import game_pkg::*;
 (
@@ -9,24 +8,26 @@ module game_ctrl
   output logic [MAP_ADDR_BITS-1:0]   target_terrain_addr,
   input  logic [TERRAIN_BITS-1:0]    target_terrain,
   // game state, read by drawcon
-  output tile_x_t                    cursor_x,
-  output tile_y_t                    cursor_y,
-  output player_t                    current_player,
+  output logic [MAP_X_BITS-1:0]      cursor_x,
+  output logic [MAP_Y_BITS-1:0]      cursor_y,
+  output logic                       current_player,
   output logic                       unit_selected,
   output logic [UNIT_INDEX_BITS-1:0] selected_unit,
-  output unit_t [MAX_UNITS-1:0]      unit_table
+  output unit   [MAX_UNITS-1:0]      unit_table
 );
 
-  typedef enum logic { S_PLAY, S_END_TURN } state_e;
-  state_e state;
+  localparam logic S_PLAY     = 1'b0;
+  localparam logic S_END_TURN = 1'b1;
+  logic state;
 
-  localparam unit_t P1_START_UNIT = initial_unit(0);   // cursor starts here
+  localparam unit P1_START_UNIT = initial_unit(0);   // cursor starts here
 
   // Target: the tile next to the cursor in the pressed direction.
   // A selected unit is always under the cursor.
-  tile_x_t target_x;
-  tile_y_t target_y;
+  logic [MAP_X_BITS-1:0] target_x;
+  logic [MAP_Y_BITS-1:0] target_y;
   logic    arrow_pressed, target_on_map;
+
 
   always_comb begin
     target_x         = cursor_x;
@@ -37,13 +38,13 @@ module game_ctrl
       if (cursor_y == '0) target_on_map = 1'b0;
       else                target_y = cursor_y - 1'b1;
     end else if (press[BTN_DOWN]) begin
-      if (cursor_y == tile_y_t'(PLAY_TILES_Y - 1)) target_on_map = 1'b0;
+      if (cursor_y == MAP_Y_BITS'(PLAY_TILES_Y - 1)) target_on_map = 1'b0;
       else                                           target_y = cursor_y + 1'b1;
     end else if (press[BTN_LEFT]) begin
       if (cursor_x == '0) target_on_map = 1'b0;
       else                target_x = cursor_x - 1'b1;
     end else if (press[BTN_RIGHT]) begin
-      if (cursor_x == tile_x_t'(PLAY_TILES_X - 1)) target_on_map = 1'b0;
+      if (cursor_x == MAP_X_BITS'(PLAY_TILES_X - 1)) target_on_map = 1'b0;
       else                                           target_x = cursor_x + 1'b1;
     end
   end
@@ -71,30 +72,30 @@ module game_ctrl
   logic                       can_attack;  // ... and it is an enemy
   assign defender   = unit_at_target[UNIT_INDEX_BITS-1:0];
   assign can_attack = target_on_map && unit_at_target[UNIT_INDEX_BITS] &&
-                      unit_table[defender].owner != current_player;
+                      unit_table[defender].player_owner != current_player;
 
   logic [HP_BITS-1:0] attacker_damage;     // HP the selected unit loses when attacking
-  assign attacker_damage = counter_damage(unit_table[selected_unit].kind);
+  assign attacker_damage = counter_damage(unit_table[selected_unit].unit_type);
 
   // Any other own unit with moves left?
   logic other_units_can_move;
   always_comb begin
     other_units_can_move = 1'b0;
     for (int i = 0; i < MAX_UNITS; i++)
-      if (unit_table[i].in_use && unit_table[i].owner == current_player &&
+      if (unit_table[i].in_use && unit_table[i].player_owner == current_player &&
           unit_table[i].moves_left != '0 &&
           !(unit_selected && UNIT_INDEX_BITS'(i) == selected_unit))
         other_units_can_move = 1'b1;
   end
 
   // Cursor start for the next player: their first unit, else their city
-  tile_x_t next_player_start_x;
-  tile_y_t next_player_start_y;
+  logic [MAP_X_BITS-1:0] next_player_start_x;
+  logic [MAP_Y_BITS-1:0] next_player_start_y;
   always_comb begin
     next_player_start_x = city_x(~current_player);
     next_player_start_y = city_y(~current_player);
     for (int i = MAX_UNITS - 1; i >= 0; i--)
-      if (unit_table[i].in_use && unit_table[i].owner == ~current_player) begin
+      if (unit_table[i].in_use && unit_table[i].player_owner == ~current_player) begin
         next_player_start_x = unit_table[i].x;
         next_player_start_y = unit_table[i].y;
       end
@@ -122,7 +123,7 @@ module game_ctrl
             end else if (press[BTN_CENTER]) begin
               if (unit_at_cursor[UNIT_INDEX_BITS]) begin
                 // select own unit with moves left
-                if (unit_table[unit_at_cursor[UNIT_INDEX_BITS-1:0]].owner == current_player &&
+                if (unit_table[unit_at_cursor[UNIT_INDEX_BITS-1:0]].player_owner == current_player &&
                     unit_table[unit_at_cursor[UNIT_INDEX_BITS-1:0]].moves_left != '0) begin
                   unit_selected <= 1'b1;
                   selected_unit <= unit_at_cursor[UNIT_INDEX_BITS-1:0];
@@ -143,7 +144,7 @@ module game_ctrl
               unit_table[selected_unit].moves_left <= unit_table[selected_unit].moves_left - 1'b1;
               cursor_x <= target_x;
               cursor_y <= target_y;
-              if (unit_table[selected_unit].moves_left == 2'd1) begin   // last move used
+              if (unit_table[selected_unit].moves_left == 3'd1) begin   // last move used
                 unit_selected <= 1'b0;
                 if (!other_units_can_move) state <= S_END_TURN;
               end
@@ -171,8 +172,8 @@ module game_ctrl
           current_player <= ~current_player;
           unit_selected  <= 1'b0;
           for (int i = 0; i < MAX_UNITS; i++)
-            if (unit_table[i].in_use && unit_table[i].owner == ~current_player)
-              unit_table[i].moves_left <= moves_per_turn(unit_table[i].kind);
+            if (unit_table[i].in_use && unit_table[i].player_owner == ~current_player)
+              unit_table[i].moves_left <= moves_per_turn(unit_table[i].unit_type);
           cursor_x <= next_player_start_x;
           cursor_y <= next_player_start_y;
           state    <= S_PLAY;

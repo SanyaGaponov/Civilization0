@@ -17,12 +17,12 @@ module tb_game_ctrl;
   logic [NUM_BUTTONS-1:0]     press;
   logic [MAP_ADDR_BITS-1:0]   target_terrain_addr;
   logic [TERRAIN_BITS-1:0]    target_terrain;
-  tile_x_t                    cursor_x;
-  tile_y_t                    cursor_y;
-  player_t                    current_player;
+  logic [MAP_X_BITS-1:0]      cursor_x;
+  logic [MAP_Y_BITS-1:0]      cursor_y;
+  logic                       current_player;
   logic                       unit_selected;
   logic [UNIT_INDEX_BITS-1:0] selected_unit;
-  unit_t [MAX_UNITS-1:0]      unit_table;
+  unit   [MAX_UNITS-1:0]      unit_table;
 
   /* verilator lint_off PINCONNECTEMPTY */
   terrain_memory #(.MAP_FILE(MAP_FILE)) u_terrain (
@@ -38,8 +38,8 @@ module tb_game_ctrl;
   // Reference model
   logic [TERRAIN_BITS-1:0] map [MAP_WIDTH * MAP_HEIGHT];
   int  m_x [MAX_UNITS], m_y [MAX_UNITS], m_moves [MAX_UNITS], m_hp [MAX_UNITS];
-  bit  m_valid [MAX_UNITS], m_owner [MAX_UNITS];
-  unit_type_e m_kind [MAX_UNITS];
+  bit  m_valid [MAX_UNITS], m_player_owner [MAX_UNITS];
+  logic [1:0] m_unit_type [MAX_UNITS];
   bit  m_player, m_sel;
   int  m_sidx, m_cx, m_cy;
 
@@ -67,12 +67,12 @@ module tb_game_ctrl;
   task automatic model_reset();
     int n;
     for (int i = 0; i < MAX_UNITS; i++) begin
-      unit_t u = initial_unit(i);
-      m_valid[i] = u.in_use; m_owner[i] = u.owner; m_kind[i] = u.kind;
+      unit u = initial_unit(i);
+      m_valid[i] = u.in_use; m_player_owner[i] = u.player_owner; m_unit_type[i] = u.unit_type;
       m_x[i] = int'(u.x); m_y[i] = int'(u.y); m_moves[i] = int'(u.moves_left);
       m_hp[i] = int'(u.hp);
-      if (u.in_use && u.hp != max_hp(u.kind)) begin
-        errors++; $display("ERROR: starter unit %0d has %0d HP, expected %0d", i, u.hp, max_hp(u.kind));
+      if (u.in_use && u.hp != max_hp(u.unit_type)) begin
+        errors++; $display("ERROR: starter unit %0d has %0d HP, expected %0d", i, u.hp, max_hp(u.unit_type));
       end
     end
     // one spearman, archer and cavalry per player
@@ -80,12 +80,12 @@ module tb_game_ctrl;
       for (int k = 0; k < 3; k++) begin
         n = 0;
         for (int i = 0; i < MAX_UNITS; i++)
-          if (m_valid[i] && int'(m_owner[i]) == p && int'(m_kind[i]) == k) n++;
+          if (m_valid[i] && int'(m_player_owner[i]) == p && int'(m_unit_type[i]) == k) n++;
         if (n != 1) begin
           errors++; $display("ERROR: player %0d starts with %0d units of type %0d, expected 1", p + 1, n, k);
         end
       end
-    if (m_kind[P1_SPEARMAN] != U_SPEARMAN || m_kind[P2_SPEARMAN] != U_SPEARMAN) begin
+    if (m_unit_type[P1_SPEARMAN] != U_SPEARMAN || m_unit_type[P2_SPEARMAN] != U_SPEARMAN) begin
       errors++; $display("ERROR: directed tests expect spearmen in slots %0d and %0d", P1_SPEARMAN, P2_SPEARMAN);
     end
     m_player = 0; m_sel = 0; m_sidx = 0;
@@ -97,8 +97,8 @@ module tb_game_ctrl;
     m_sel    = 0;
     m_cx = int'(city_x(m_player)); m_cy = int'(city_y(m_player));
     for (int i = MAX_UNITS - 1; i >= 0; i--)
-      if (m_valid[i] && m_owner[i] == m_player) begin
-        m_moves[i] = int'(moves_per_turn(m_kind[i]));
+      if (m_valid[i] && m_player_owner[i] == m_player) begin
+        m_moves[i] = int'(moves_per_turn(m_unit_type[i]));
         m_cx = m_x[i]; m_cy = m_y[i];      // cursor -> first own unit
       end
   endtask
@@ -106,8 +106,8 @@ module tb_game_ctrl;
   task automatic model_remove(int u);   // defeated: slot becomes empty
     for (int i = 0; i < MAX_UNITS; i++)
       if (i == u) begin
-        m_valid[i] = 0; m_owner[i] = 0; m_x[i] = 0; m_y[i] = 0; m_moves[i] = 0; m_hp[i] = 0;
-        m_kind[i] = U_SPEARMAN;
+        m_valid[i] = 0; m_player_owner[i] = 0; m_x[i] = 0; m_y[i] = 0; m_moves[i] = 0; m_hp[i] = 0;
+        m_unit_type[i] = U_SPEARMAN;
       end
     n_kill++;
   endtask
@@ -121,7 +121,7 @@ module tb_game_ctrl;
       end else begin
         u = unit_at(m_cx, m_cy);
         if (u >= 0) begin
-          if (m_owner[u] == m_player && m_moves[u] > 0) begin m_sel = 1; m_sidx = u; n_select++; end
+          if (m_player_owner[u] == m_player && m_moves[u] > 0) begin m_sel = 1; m_sidx = u; n_select++; end
         end else if (city_at(m_cx, m_cy) >= 0) begin
           n_c_city++;                        // city: nothing yet
         end else begin
@@ -146,17 +146,17 @@ module tb_game_ctrl;
     end
     if (!ok)                                       begin n_blk_edge++;    return; end
     u = unit_at(nx, ny);
-    if (u >= 0 && m_owner[u] != m_player) begin    // attack
+    if (u >= 0 && m_player_owner[u] != m_player) begin    // attack
       n_attack++;
       if (m_hp[u] <= int'(ATTACK_DAMAGE)) model_remove(u);
       else                                m_hp[u] -= int'(ATTACK_DAMAGE);
-      c = int'(counter_damage(m_kind[m_sidx]));
+      c = int'(counter_damage(m_unit_type[m_sidx]));
       if (m_hp[m_sidx] <= c) model_remove(m_sidx);
       else begin m_hp[m_sidx] -= c; m_moves[m_sidx] = 0; end
       m_sel = 0;
       left = 0;
       for (int i = 0; i < MAX_UNITS; i++)
-        if (m_valid[i] && m_owner[i] == m_player && m_moves[i] > 0) left = 1;
+        if (m_valid[i] && m_player_owner[i] == m_player && m_moves[i] > 0) left = 1;
       if (!left) begin model_end_turn(); n_turn_auto++; end
       return;
     end
@@ -169,7 +169,7 @@ module tb_game_ctrl;
       m_sel = 0;
       left = 0;
       for (int i = 0; i < MAX_UNITS; i++)
-        if (m_valid[i] && m_owner[i] == m_player && m_moves[i] > 0) left = 1;
+        if (m_valid[i] && m_player_owner[i] == m_player && m_moves[i] > 0) left = 1;
       if (!left) begin model_end_turn(); n_turn_auto++; end
     end
   endtask
@@ -182,7 +182,7 @@ module tb_game_ctrl;
           (m_sel && int'(selected_unit) != m_sidx);
     for (int i = 0; i < MAX_UNITS; i++) begin
       if (unit_table[i].in_use != m_valid[i]) bad = 1;
-      if (m_valid[i] && (unit_table[i].owner != m_owner[i] || int'(unit_table[i].x) != m_x[i] ||
+      if (m_valid[i] && (unit_table[i].player_owner != m_player_owner[i] || int'(unit_table[i].x) != m_x[i] ||
                          int'(unit_table[i].y) != m_y[i]   || int'(unit_table[i].moves_left) != m_moves[i] ||
                          int'(unit_table[i].hp) != m_hp[i]))
         bad = 1;
@@ -226,6 +226,7 @@ module tb_game_ctrl;
   // end_turn_if(p): pass if it is still player p's turn.
   task automatic pass_turn();
     int nx, ny;
+    if (m_sel) do_press(BTN_CENTER, -1);          // deselect first
     for (int d = BTN_UP; d <= BTN_RIGHT; d++) begin
       nx = m_cx + dir_dx(d);
       ny = m_cy + dir_dy(d);
@@ -330,22 +331,23 @@ module tb_game_ctrl;
     if (errors == 0) $display("directed: attacker with 1 HP dies from the counter-attack, hardware matches the model");
   endtask
 
-  // After reset: P1 uses all moves (cavalry twice); the turn must pass by itself.
+  // After reset: P1 uses all moves; the turn must pass by itself.
   task automatic directed_auto_end();
     int auto_ends;
     auto_ends = n_turn_auto;
-    do_press(BTN_CENTER, -1); do_press(BTN_RIGHT, -1);   // spearman (5,10) -> (6,10)
-    do_press(BTN_LEFT, -1);   do_press(BTN_LEFT, -1);    // cursor to the archer (4,9)
+    do_press(BTN_CENTER, -1);                            // spearman (5,10) -> (7,10)
+    repeat (2) do_press(BTN_RIGHT, -1);
+    repeat (3) do_press(BTN_LEFT, -1);                   // cursor to the archer (4,9)
     do_press(BTN_UP, -1);
-    do_press(BTN_CENTER, -1); do_press(BTN_UP, -1);      // archer (4,9) -> (4,8)
-    repeat (3) do_press(BTN_DOWN, -1);                   // cursor to the cavalry (4,11)
-    do_press(BTN_CENTER, -1);
-    do_press(BTN_DOWN, -1);                              // cavalry (4,11) -> (4,12), 1 move left
-    do_press(BTN_DOWN, -1);                              // ... -> (4,13), no moves left
+    do_press(BTN_CENTER, -1);                            // archer (4,9) -> (4,7)
+    repeat (2) do_press(BTN_UP, -1);
+    repeat (4) do_press(BTN_DOWN, -1);                   // cursor to the cavalry (4,11)
+    do_press(BTN_CENTER, -1);                            // cavalry (4,11) -> (4,15)
+    repeat (4) do_press(BTN_DOWN, -1);                   // no moves left anywhere
     if (current_player != 1'b1 || n_turn_auto != auto_ends + 1) begin
       errors++; $display("ERROR: directed test: turn did not pass after all P1 units moved");
     end
-    if (errors == 0) $display("directed: all three P1 units moved (cavalry twice), turn passed automatically");
+    if (errors == 0) $display("directed: all P1 moves used (spearman 2, archer 2, cavalry 4), turn passed automatically");
   endtask
 
   task automatic restart();

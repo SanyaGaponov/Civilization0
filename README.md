@@ -15,7 +15,7 @@ The cursor colour and LEDs 14/15 show whose turn it is.
 | Unit selected (blinks) | move, or attack an enemy unit there | deselect |
 
 - Units can't enter ocean, mountains, the enemy city or a tile with your own unit.
-- Moves per turn: spearman 1, archer 1, cavalry 2. Units with no moves left are dimmed.
+- Moves per turn: spearman 2, archer 2, cavalry 4. Units with no moves left are dimmed.
 - Attack: the defender loses 3 HP, the attacker 1 HP (archers 0). A unit at 0 HP
   is removed. Attacking uses all remaining moves.
 - HP: archers 6, others 10, shown as a bar under the unit (green = left, red = lost),
@@ -96,9 +96,9 @@ characters each, drawn at 2× in a 32×32 tile. Leave the outer row/column free
 for the cursor and the two rows above the bottom one free for the HP bar.
 Run `make mem` after editing; check `mem/sprites_preview.png`.
 
-| char | `.` | `k` | `P` | `p` | `w` | `s` | `b` | `d` | `g` | `G` | `y` |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| colour | transparent | outline | owner | dark owner | white | skin | wood | dark wood | steel | dark steel | gold |
+| char | `.` | `k` | `P` | `p` | `w` | `s` | `b` | `d` | `g` | `G` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| colour | transparent | outline | owner | dark owner | white | skin | wood | dark wood | steel | dark steel |
 
 ## Conventions
 

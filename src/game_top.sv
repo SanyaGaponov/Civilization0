@@ -90,12 +90,12 @@ module game_top
   );
 
   // Game rules and state
-  tile_x_t                    cursor_x;
-  tile_y_t                    cursor_y;
-  player_t                    current_player;
+  logic [MAP_X_BITS-1:0]      cursor_x;
+  logic [MAP_Y_BITS-1:0]      cursor_y;
+  logic                       current_player;
   logic                       unit_selected;
   logic [UNIT_INDEX_BITS-1:0] selected_unit;
-  unit_t [MAX_UNITS-1:0]      unit_table;
+  unit   [MAX_UNITS-1:0]      unit_table;
   game_ctrl u_game (
     .clk                (pixclk),
     .rst                (rst),

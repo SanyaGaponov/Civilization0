@@ -14,12 +14,12 @@ module drawcon
   output logic [SPRITE_ADDR_BITS-1:0] city_sprite_addr,
   input  logic [PIXEL_BITS-1:0]       city_sprite_pixel,
   // game state, from game_ctrl
-  input  tile_x_t                     cursor_x,
-  input  tile_y_t                     cursor_y,
-  input  player_t                     current_player,
+  input  logic [MAP_X_BITS-1:0]       cursor_x,
+  input  logic [MAP_Y_BITS-1:0]       cursor_y,
+  input  logic                        current_player,
   input  logic                        unit_selected,
   input  logic [UNIT_INDEX_BITS-1:0]  selected_unit,
-  input  unit_t [MAX_UNITS-1:0]       unit_table,
+  input  unit   [MAX_UNITS-1:0]       unit_table,
   input  logic                        blink,
   // pixel colour, to vga_out
   output logic [3:0]                  r,
@@ -42,8 +42,8 @@ module drawcon
   assign map_y  = draw_y - 10'(MAP_TOP);
 
   // Tile under the pixel, and the pixel's position inside it (0..31)
-  tile_x_t tile_x;
-  tile_y_t tile_y;
+  logic [MAP_X_BITS-1:0] tile_x;
+  logic [MAP_Y_BITS-1:0] tile_y;
   logic [TILE_BITS-1:0] x_in_tile, y_in_tile;
   assign tile_x            = map_x[TILE_BITS +: MAP_X_BITS];   // map_x[9:5]
   assign tile_y            = map_y[TILE_BITS +: MAP_Y_BITS];   // map_y[9:5]
@@ -69,7 +69,7 @@ module drawcon
   logic [SPRITE_BITS-1:0] sprite_x, sprite_y;
   assign sprite_x         = x_in_tile[TILE_BITS-1 -: SPRITE_BITS];   // x_in_tile[4:1]
   assign sprite_y         = y_in_tile[TILE_BITS-1 -: SPRITE_BITS];
-  assign unit_sprite_addr = {unit_table[unit_index].kind, sprite_y, sprite_x};
+  assign unit_sprite_addr = {unit_table[unit_index].unit_type, sprite_y, sprite_x};
   assign city_sprite_addr = {SPRITE_CITY, sprite_y, sprite_x};
 
   // HP bar: rows 28-29, up to 10 segments of 2 px
@@ -98,8 +98,8 @@ module drawcon
     if ((city_p1_here || city_p2_here) && city_sprite_pixel != '0)
       {blk_r, blk_g, blk_b} = sprite_color(city_sprite_pixel, player_color(city_p2_here));
     // unit
-    unit_owner_color = player_color(unit_table[unit_index].owner);
-    if (unit_table[unit_index].owner == current_player && unit_table[unit_index].moves_left == '0)
+    unit_owner_color = player_color(unit_table[unit_index].player_owner);
+    if (unit_table[unit_index].player_owner == current_player && unit_table[unit_index].moves_left == '0)
       unit_owner_color = dim(unit_owner_color);   // no moves left
     if (unit_selected && selected_unit == unit_index && blink)
       unit_owner_color = WHITE;                   // selected: blinks
@@ -107,7 +107,7 @@ module drawcon
       {blk_r, blk_g, blk_b} = sprite_color(unit_sprite_pixel, unit_owner_color);
     // HP bar: one segment per full HP; green if hp > k, else red
     if (unit_on_tile[UNIT_INDEX_BITS] && on_hp_bar &&
-        hp_segment < max_hp(unit_table[unit_index].kind))
+        hp_segment < max_hp(unit_table[unit_index].unit_type))
       {blk_r, blk_g, blk_b} = (hp_segment < unit_table[unit_index].hp) ? HP_LEFT : HP_LOST;
     // cursor
     if (cursor_here && on_cursor_frame)

@@ -23,7 +23,6 @@ LEGEND = {
     "d": (0x7, 0x631),                             # dark wood
     "g": (0x8, 0xCCC),                             # steel / stone
     "G": (0x9, 0x888),                             # dark steel / stone
-    "y": (0xA, 0xFD2),                             # gold
 }
 
 

@@ -1,4 +1,3 @@
-// Shared constants, types and helper functions.
 /* verilator lint_off UNUSEDPARAM */
 package game_pkg;
 
@@ -10,7 +9,9 @@ package game_pkg;
   localparam int MAP_HEIGHT    = 1 << MAP_Y_BITS;
   localparam int MAP_ADDR_BITS = MAP_X_BITS + MAP_Y_BITS;  // address = {tile_y, tile_x}
 
-  // Terrain codes (must match scripts/gen_map.py)
+  
+  // -------------------------------------------- TERRAIN --------------------------------------------
+  // Terrain codes (inshala match scripts/gen_map.py)
   localparam int TERRAIN_BITS = 4;
   typedef enum logic [TERRAIN_BITS-1:0] {
     T_OCEAN    = 4'h0,
@@ -39,84 +40,83 @@ package game_pkg;
     return (t != T_OCEAN) && (t != T_MOUNTAIN);
   endfunction
 
-  // Tile coordinates; the playable map is 32x20 tiles
-  typedef logic [MAP_X_BITS-1:0] tile_x_t;
-  typedef logic [MAP_Y_BITS-1:0] tile_y_t;
+  // -------------------------------------------- MAP --------------------------------------------
+
+  // Playable map: 32x20 tiles
   localparam int PLAY_TILES_X = 32;
   localparam int PLAY_TILES_Y = 20;
 
-  // Map position on the 1280x800 screen (pixels): centred
+  // Map position on the 1280x800 screen: centred
   localparam int MAP_LEFT = (1280 - (PLAY_TILES_X << TILE_BITS)) / 2;   // 128
   localparam int MAP_TOP  = (800  - (PLAY_TILES_Y << TILE_BITS)) / 2;   // 80
 
-  // Players: 0 = Player 1 (red), 1 = Player 2 (blue)
-  typedef logic player_t;
-
-  function automatic logic [11:0] player_color(input player_t p);
+  // Players (1 bit): 0 = Player 1 (red), 1 = Player 2 (blue)
+  function automatic logic [11:0] player_color(input logic p);
     return p ? 12'h26F : 12'hE22;
   endfunction
 
-  // One fixed city per player (tile coordinates)
-  localparam tile_x_t CITY_P1_X = 5'd4;
-  localparam tile_y_t CITY_P1_Y = 5'd10;
-  localparam tile_x_t CITY_P2_X = 5'd27;
-  localparam tile_y_t CITY_P2_Y = 5'd9;
+  // One hardcoded city per player
+  localparam logic [MAP_X_BITS-1:0] CITY_P1_X = 5'd4;
+  localparam logic [MAP_Y_BITS-1:0] CITY_P1_Y = 5'd10;
+  localparam logic [MAP_X_BITS-1:0] CITY_P2_X = 5'd27;
+  localparam logic [MAP_Y_BITS-1:0] CITY_P2_Y = 5'd9;
 
-  function automatic tile_x_t city_x(input player_t p);
+  function automatic logic [MAP_X_BITS-1:0] city_x(input logic p);
     return p ? CITY_P2_X : CITY_P1_X;
   endfunction
-  function automatic tile_y_t city_y(input player_t p);
+  function automatic logic [MAP_Y_BITS-1:0] city_y(input logic p);
     return p ? CITY_P2_Y : CITY_P1_Y;
   endfunction
 
   // Units: a table of MAX_UNITS slots; a slot is empty when in_use = 0
   localparam int MAX_UNITS       = 8;
   localparam int UNIT_INDEX_BITS = 3;
-  localparam int MOVES_BITS      = 2;
+  localparam int MOVES_BITS      = 3;
   localparam int HP_BITS         = 4;
   localparam logic [HP_BITS-1:0] MAX_HP = 4'd10;   // largest HP = HP bar length
 
-  typedef enum logic [1:0] {
-    U_SPEARMAN = 2'd0,
-    U_ARCHER   = 2'd1,
-    U_CAVALRY  = 2'd2
-  } unit_type_e;
+  // Unit types
+  localparam logic [1:0] U_SPEARMAN = 2'd0;
+  localparam logic [1:0] U_ARCHER   = 2'd1;
+  localparam logic [1:0] U_CAVALRY  = 2'd2;
 
   typedef struct packed {
-    logic                  in_use;       // slot holds a unit
-    player_t               owner;
-    unit_type_e            kind;
-    tile_x_t               x;
-    tile_y_t               y;
-    logic [MOVES_BITS-1:0] moves_left;   // movement points left this turn
-    logic [HP_BITS-1:0]    hp;           // hit points left
-  } unit_t;
+    logic                  in_use;         // slot holds a unit
+    logic                  player_owner;   // 0 = Player 1, 1 = Player 2
+    logic [1:0]            unit_type;      // U_SPEARMAN / U_ARCHER / U_CAVALRY
+    logic [MAP_X_BITS-1:0] x;
+    logic [MAP_Y_BITS-1:0] y;
+    logic [MOVES_BITS-1:0] moves_left;     // movement points left this turn
+    logic [HP_BITS-1:0]    hp;             // hit points left
+  } unit;                                  // 21 bits
 
   // Fighting: defender loses ATTACK_DAMAGE, attacker loses counter_damage()
   localparam logic [HP_BITS-1:0] ATTACK_DAMAGE = 4'd3;
-  function automatic logic [HP_BITS-1:0] counter_damage(input unit_type_e attacker);
+  function automatic logic [HP_BITS-1:0] counter_damage(input logic [1:0] attacker);
     return (attacker == U_ARCHER) ? 4'd0 : 4'd1;   // archers attack from range
   endfunction
 
   // Full HP per unit type
-  function automatic logic [HP_BITS-1:0] max_hp(input unit_type_e t);
+  function automatic logic [HP_BITS-1:0] max_hp(input logic [1:0] t);
     return (t == U_ARCHER) ? 4'd6 : MAX_HP;
   endfunction
 
   // Movement points per turn
-  function automatic logic [MOVES_BITS-1:0] moves_per_turn(input unit_type_e t);
-    return (t == U_CAVALRY) ? 2'd2 : 2'd1;
+  function automatic logic [MOVES_BITS-1:0] moves_per_turn(input logic [1:0] t);
+    return (t == U_CAVALRY) ? 3'd4 : 3'd2;
   endfunction
 
   // New unit with full HP and moves
-  function automatic unit_t new_unit(input player_t owner, input unit_type_e kind,
-                                     input tile_x_t x, input tile_y_t y);
-    return '{in_use: 1'b1, owner: owner, kind: kind, x: x, y: y,
-             moves_left: moves_per_turn(kind), hp: max_hp(kind)};
+  function automatic unit new_unit(input logic                  player_owner,
+                                   input logic [1:0]            unit_type,
+                                   input logic [MAP_X_BITS-1:0] x,
+                                   input logic [MAP_Y_BITS-1:0] y);
+    return '{in_use: 1'b1, player_owner: player_owner, unit_type: unit_type, x: x, y: y,
+             moves_left: moves_per_turn(unit_type), hp: max_hp(unit_type)};
   endfunction
 
   // Units at reset. Slots 0-2: Player 1, 3-5: Player 2, 6-7: empty.
-  function automatic unit_t initial_unit(input int i);
+  function automatic unit initial_unit(input int i);
     case (i)
       0: return new_unit(1'b0, U_SPEARMAN, CITY_P1_X + 5'd1, CITY_P1_Y);          // east of city
       1: return new_unit(1'b0, U_ARCHER,   CITY_P1_X,        CITY_P1_Y - 5'd1);   // north
@@ -129,8 +129,9 @@ package game_pkg;
   endfunction
 
   // Unit on tile (qx, qy): returns {found, index}; lowest index wins
-  function automatic logic [UNIT_INDEX_BITS:0] find_unit(input unit_t [MAX_UNITS-1:0] u,
-                                                         input tile_x_t qx, input tile_y_t qy);
+  function automatic logic [UNIT_INDEX_BITS:0] find_unit(input unit [MAX_UNITS-1:0]   u,
+                                                         input logic [MAP_X_BITS-1:0] qx,
+                                                         input logic [MAP_Y_BITS-1:0] qy);
     logic [UNIT_INDEX_BITS:0] r;
     r = '0;
     for (int i = MAX_UNITS - 1; i >= 0; i--)
@@ -138,8 +139,10 @@ package game_pkg;
     return r;
   endfunction
 
+  // -------------------------------------------- SPRITES --------------------------------------------
+
   // Sprites: 16x16 pixels, drawn 2x; one 4-bit palette index per pixel.
-  // Sprite number = unit kind (0-2); the city is sprite 3.
+  // Sprite number = unit type (0-2); the city is sprite 3.
   localparam int SPRITE_BITS      = 4;                       // 16 pixels
   localparam int PIXEL_BITS       = 4;
   localparam int NUM_SPRITES      = 4;
@@ -159,7 +162,6 @@ package game_pkg;
       4'h7:    return 12'h631;                  // dark wood
       4'h8:    return 12'hCCC;                  // steel / stone
       4'h9:    return 12'h888;                  // dark steel / stone
-      4'hA:    return 12'hFD2;                  // gold
       default: return 12'h000;                  // transparent
     endcase
   endfunction
