@@ -12,7 +12,7 @@ The cursor colour and LEDs 14/15 show whose turn it is.
 | | Arrows | Centre |
 |---|---|---|
 | No unit selected | move the cursor | own unit: select · empty tile: end turn |
-| Unit selected (blinks) | move, or attack an enemy unit there | deselect |
+| Unit selected (white) | move, or attack an enemy unit there | deselect |
 
 - Units can't enter ocean, mountains, the enemy city or a tile with your own unit.
 - Moves per turn: spearman 2, archer 2, cavalry 4. Units with no moves left are dimmed.
@@ -63,7 +63,7 @@ make bit                 # -> build/game_top.bit; check "Timing met" at the end
 make program             # or: openFPGALoader -b nexys_a7_100 build/game_top.bit
 ```
 
-LED0: pixel clock locked. LED1: blinks while running.
+LED0: pixel clock locked.
 
 ## Seven segment display
 

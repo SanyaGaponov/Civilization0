@@ -24,7 +24,7 @@ module game_top
   output logic [7:0]  AN                            // seven segment digit selects
 );
 
-  // Pixel clock: 100 MHz -> 83.46 MHz
+  // 100 MHz -> 83.46 MHz
   logic pixclk, locked;
   clk_wiz_0 u_clk (
     .clk_out1(pixclk),
@@ -32,16 +32,9 @@ module game_top
     .clk_in1 (clk)
   );
 
-  // Reset: on while the button is pressed or the clock is unstable;
-  // released in step with pixclk.
-  logic       reset_request_n, rst;
-  logic [1:0] reset_sync;
-  assign reset_request_n = CPU_RESETN & locked;
-  always_ff @(posedge pixclk or negedge reset_request_n) begin
-    if (!reset_request_n) reset_sync <= 2'b11;
-    else                  reset_sync <= {reset_sync[0], 1'b0};
-  end
-  assign rst = reset_sync[1];
+  // rst
+  logic rst;
+  always_ff @(posedge pixclk) rst <= ~(CPU_RESETN & locked);
 
   // VGA output
   logic [3:0]        r, g, b;
@@ -62,7 +55,7 @@ module game_top
     .curr_y(curr_y)
   );
 
-  // Buttons: one 1-clock pulse per press
+  // Buttons
   logic [NUM_BUTTONS-1:0] press;
   button u_btn_c (.clk(pixclk), .rst(rst), .pressed_signal(BTNC), .pressed_finally(press[BTN_CENTER]));
   button u_btn_u (.clk(pixclk), .rst(rst), .pressed_signal(BTNU), .pressed_finally(press[BTN_UP]));
@@ -112,10 +105,6 @@ module game_top
     .unit_table         (unit_table)
   );
 
-  // Free-running counter: LED blink and unit blink
-  logic [25:0] heartbeat;
-  always_ff @(posedge pixclk) heartbeat <= heartbeat + 1'b1;
-
   // Pixel colours
   drawcon u_drawcon (
     .draw_x           (curr_x),
@@ -132,14 +121,12 @@ module game_top
     .unit_selected    (unit_selected),
     .selected_unit    (selected_unit),
     .unit_table       (unit_table),
-    .blink            (heartbeat[24]),   // ~0.2 s
     .r                (r),
     .g                (g),
     .b                (b)
   );
 
-  // Seven segment display: HP of the unit under the cursor on the two right
-  // digits, the player whose turn it is on the leftmost one.
+  // Seven segment display: HP of the unit + of the player
   logic [UNIT_INDEX_BITS:0] unit_at_cursor;             // {found, index}
   logic [HP_BITS-1:0]       cursor_hp;
   logic [3:0]               hp_tens, hp_ones, turn_digit;
@@ -157,8 +144,10 @@ module game_top
   end
 
   // One digit step every 2^17 clocks: 637 Hz, so all eight are redrawn at 80 Hz
-  logic seg_tick;
-  assign seg_tick = (heartbeat[16:0] == '0);
+  logic [16:0] scan_timer;
+  logic        seg_tick;
+  always_ff @(posedge pixclk) scan_timer <= scan_timer + 1'b1;
+  assign seg_tick = (scan_timer == '0);
 
   multidigit u_multidigit (
     .clk (pixclk),
@@ -185,11 +174,10 @@ module game_top
 
   assign DP = 1'b1;   // active low, so the point stays off
 
-  // LEDs: 0 clock locked, 1 heartbeat, 14/15 whose turn
+  // LEDs: 0 clock locked, 14/15 whose turn
   always_comb begin
     LED     = '0;
     LED[0]  = locked;
-    LED[1]  = heartbeat[25];
     LED[14] = (current_player == 1'b0);
     LED[15] = (current_player == 1'b1);
   end

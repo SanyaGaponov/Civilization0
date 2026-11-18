@@ -1,4 +1,4 @@
-// Terrain map (read-only): 32x32 tiles, 4 bits each, two instant reads.
+// Terrain map (read-only): 32x32 tiles, 3 bits each, two instant reads.
 module terrain_memory
   import game_pkg::*;
 #(

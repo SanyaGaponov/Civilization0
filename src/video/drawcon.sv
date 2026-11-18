@@ -20,7 +20,6 @@ module drawcon
   input  logic                        unit_selected,
   input  logic [UNIT_INDEX_BITS-1:0]  selected_unit,
   input  unit   [MAX_UNITS-1:0]       unit_table,
-  input  logic                        blink,
   // pixel colour, to vga_out
   output logic [3:0]                  r,
   output logic [3:0]                  g,
@@ -101,8 +100,8 @@ module drawcon
     unit_owner_color = player_color(unit_table[unit_index].player_owner);
     if (unit_table[unit_index].player_owner == current_player && unit_table[unit_index].moves_left == '0)
       unit_owner_color = dim(unit_owner_color);   // no moves left
-    if (unit_selected && selected_unit == unit_index && blink)
-      unit_owner_color = WHITE;                   // selected: blinks
+    if (unit_selected && selected_unit == unit_index)
+      unit_owner_color = WHITE;                   // selected: white
     if (unit_on_tile[UNIT_INDEX_BITS] && unit_sprite_pixel != '0)
       {blk_r, blk_g, blk_b} = sprite_color(unit_sprite_pixel, unit_owner_color);
     // HP bar: one segment per full HP; green if hp > k, else red

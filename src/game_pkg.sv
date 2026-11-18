@@ -12,14 +12,14 @@ package game_pkg;
   
   // -------------------------------------------- TERRAIN --------------------------------------------
   // Terrain codes (inshala match scripts/gen_map.py)
-  localparam int TERRAIN_BITS = 4;
+  localparam int TERRAIN_BITS = 3;                         // up to 8 types
   typedef enum logic [TERRAIN_BITS-1:0] {
-    T_OCEAN    = 4'h0,
-    T_GRASS    = 4'h1,
-    T_PLAINS   = 4'h2,
-    T_FOREST   = 4'h3,
-    T_HILLS    = 4'h4,
-    T_MOUNTAIN = 4'h5
+    T_OCEAN    = 3'h0,
+    T_GRASS    = 3'h1,
+    T_PLAINS   = 3'h2,
+    T_FOREST   = 3'h3,
+    T_HILLS    = 3'h4,
+    T_MOUNTAIN = 3'h5
   } terrain_e;
 
   // Terrain colour, 12-bit RGB
@@ -68,6 +68,8 @@ package game_pkg;
     return p ? CITY_P2_Y : CITY_P1_Y;
   endfunction
 
+// -------------------------------------------- UNITS --------------------------------------------
+
   // Units: a table of MAX_UNITS slots; a slot is empty when in_use = 0
   localparam int MAX_UNITS       = 8;
   localparam int UNIT_INDEX_BITS = 3;
@@ -88,9 +90,9 @@ package game_pkg;
     logic [MAP_Y_BITS-1:0] y;
     logic [MOVES_BITS-1:0] moves_left;     // movement points left this turn
     logic [HP_BITS-1:0]    hp;             // hit points left
-  } unit;                                  // 21 bits
+  } unit;
 
-  // Fighting: defender loses ATTACK_DAMAGE, attacker loses counter_damage()
+  // Fighting
   localparam logic [HP_BITS-1:0] ATTACK_DAMAGE = 4'd3;
   function automatic logic [HP_BITS-1:0] counter_damage(input logic [1:0] attacker);
     return (attacker == U_ARCHER) ? 4'd0 : 4'd1;   // archers attack from range
@@ -115,7 +117,7 @@ package game_pkg;
              moves_left: moves_per_turn(unit_type), hp: max_hp(unit_type)};
   endfunction
 
-  // Units at reset. Slots 0-2: Player 1, 3-5: Player 2, 6-7: empty.
+  // Units at reset.
   function automatic unit initial_unit(input int i);
     case (i)
       0: return new_unit(1'b0, U_SPEARMAN, CITY_P1_X + 5'd1, CITY_P1_Y);          // east of city
@@ -181,6 +183,8 @@ package game_pkg;
       default: return 12'h000;                  // transparent
     endcase
   endfunction
+
+  // -------------------------------------------- BUTTONS --------------------------------------------
 
   // Button positions in the press[] vector
   localparam int NUM_BUTTONS = 5;
