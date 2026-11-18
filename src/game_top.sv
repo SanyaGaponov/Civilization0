@@ -1,4 +1,3 @@
-// Top level: board pins, clock, reset and module wiring.
 module game_top
   import game_pkg::*;
 #(

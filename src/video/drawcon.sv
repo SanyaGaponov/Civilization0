@@ -1,4 +1,3 @@
-// Pixel colour: terrain background, city and unit sprites, HP bars and cursor on top.
 module drawcon
   import game_pkg::*;
 (

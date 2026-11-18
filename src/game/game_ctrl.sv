@@ -4,7 +4,7 @@ module game_ctrl
   input  logic                       clk,
   input  logic                       rst,
   input  logic [    NUM_BUTTONS-1:0] press,
-  input  logic                       jump,                 // SW0 flipped (1-clock pulse): next own unit
+  input  logic                       jump,                 // SW0 flipped
   // terrain lookup
   output logic [  MAP_ADDR_BITS-1:0] target_terrain_addr,
   input  logic [   TERRAIN_BITS-1:0] target_terrain,
@@ -23,12 +23,11 @@ module game_ctrl
 
   localparam unit P1_START_UNIT = initial_unit(0);  // cursor starts here
 
-  // Target: the tile next to the cursor in the pressed direction.
-  // A selected unit is always under the cursor.
+  // target is the tile next to the cursor in the pressed direction.
+  // a selected unit is always under the cursor.
   logic [MAP_X_BITS-1:0] target_x;
   logic [MAP_Y_BITS-1:0] target_y;
   logic arrow_pressed, target_on_map;
-
 
   always_comb begin
     target_x      = cursor_x;
@@ -61,20 +60,22 @@ module game_ctrl
   assign cursor_on_city = (cursor_x == CITY_P1_X && cursor_y == CITY_P1_Y) ||
                           (cursor_x == CITY_P2_X && cursor_y == CITY_P2_Y);
 
+  // The other player's city
+  logic [MAP_X_BITS-1:0] enemy_city_x;
+  logic [MAP_Y_BITS-1:0] enemy_city_y;
+  assign enemy_city_x = city_x(~current_player);
+  assign enemy_city_y = city_y(~current_player);
+
   logic target_is_enemy_city;
-  assign target_is_enemy_city = (target_x == city_x(
-    ~current_player
-  )) && (target_y == city_y(
-    ~current_player
-  ));
+  assign target_is_enemy_city = (target_x == enemy_city_x) && (target_y == enemy_city_y);
 
   logic can_move;  // target is free land
   assign can_move = target_on_map && is_walkable(
     target_terrain
   ) && !unit_at_target[UNIT_INDEX_BITS] && !target_is_enemy_city;
 
-  logic [UNIT_INDEX_BITS-1:0] defender;  // unit on the target tile
-  logic                       can_attack;  // ... and it is an enemy
+  logic [UNIT_INDEX_BITS-1:0] defender;
+  logic                       can_attack;
   assign defender = unit_at_target[UNIT_INDEX_BITS-1:0];
   assign can_attack = target_on_map && unit_at_target[UNIT_INDEX_BITS] &&
                       unit_table[defender].player_owner != current_player;
@@ -92,27 +93,29 @@ module game_ctrl
   logic other_units_can_move;
   always_comb begin
     other_units_can_move = 1'b0;
-    for (int i = 0; i < MAX_UNITS; i++)
-    if (unit_table[i].in_use && unit_table[i].player_owner == current_player &&
+    for (int i = 0; i < MAX_UNITS; i++) begin
+      if (unit_table[i].in_use && unit_table[i].player_owner == current_player &&
           unit_table[i].moves_left != '0 &&
           !(unit_selected && UNIT_INDEX_BITS'(i) == selected_unit))
-      other_units_can_move = 1'b1;
+        other_units_can_move = 1'b1;
+    end
   end
 
   // Cursor start for the next player: their first unit, else their city
   logic [MAP_X_BITS-1:0] next_player_start_x;
   logic [MAP_Y_BITS-1:0] next_player_start_y;
   always_comb begin
-    next_player_start_x = city_x(~current_player);
-    next_player_start_y = city_y(~current_player);
-    for (int i = MAX_UNITS - 1; i >= 0; i--)
-    if (unit_table[i].in_use && unit_table[i].player_owner == ~current_player) begin
-      next_player_start_x = unit_table[i].x;
-      next_player_start_y = unit_table[i].y;
+    next_player_start_x = enemy_city_x;
+    next_player_start_y = enemy_city_y;
+    for (int i = MAX_UNITS - 1; i >= 0; i--) begin
+      if (unit_table[i].in_use && unit_table[i].player_owner == ~current_player) begin
+        next_player_start_x = unit_table[i].x;
+        next_player_start_y = unit_table[i].y;
+      end
     end
   end
 
-  // State machine
+  // States
   always_ff @(posedge clk) begin
     if (rst) begin
       state          <= S_PLAY;
@@ -186,9 +189,10 @@ module game_ctrl
           // switch player, refill their moves, cursor to their first unit
           current_player <= ~current_player;
           unit_selected  <= 1'b0;
-          for (int i = 0; i < MAX_UNITS; i++)
-          if (unit_table[i].in_use && unit_table[i].player_owner == ~current_player)
-            unit_table[i].moves_left <= moves_per_turn(unit_table[i].unit_type);
+          for (int i = 0; i < MAX_UNITS; i++) begin
+            if (unit_table[i].in_use && unit_table[i].player_owner == ~current_player)
+              unit_table[i].moves_left <= moves_per_turn(unit_table[i].unit_type);
+          end
           cursor_x  <= next_player_start_x;
           cursor_y  <= next_player_start_y;
           last_jump <= UNIT_INDEX_BITS'(MAX_UNITS - 1);  // new player: start at slot 0

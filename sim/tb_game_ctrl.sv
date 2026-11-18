@@ -176,8 +176,9 @@ module tb_game_ctrl;
       end
       m_sel = 0;
       left  = 0;
-      for (int i = 0; i < MAX_UNITS; i++)
-      if (m_valid[i] && m_player_owner[i] == m_player && m_moves[i] > 0) left = 1;
+      for (int i = 0; i < MAX_UNITS; i++) begin
+        if (m_valid[i] && m_player_owner[i] == m_player && m_moves[i] > 0) left = 1;
+      end
       if (!left) model_end_turn();
       return;
     end
@@ -192,8 +193,9 @@ module tb_game_ctrl;
     if (m_moves[m_sidx] == 0) begin
       m_sel = 0;
       left  = 0;
-      for (int i = 0; i < MAX_UNITS; i++)
-      if (m_valid[i] && m_player_owner[i] == m_player && m_moves[i] > 0) left = 1;
+      for (int i = 0; i < MAX_UNITS; i++) begin
+        if (m_valid[i] && m_player_owner[i] == m_player && m_moves[i] > 0) left = 1;
+      end
       if (!left) model_end_turn();
     end
   endtask

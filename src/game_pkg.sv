@@ -12,7 +12,7 @@ package game_pkg;
 
   // -------------------------------------------- TERRAIN --------------------------------------------
   // Terrain codes (inshala match scripts/gen_map.py)
-  localparam int TERRAIN_BITS = 3;  // up to 8 types
+  localparam int TERRAIN_BITS = 3;
   typedef enum logic [TERRAIN_BITS-1:0] {
     T_OCEAN    = 3'h0,
     T_GRASS    = 3'h1,
@@ -27,15 +27,15 @@ package game_pkg;
     case (t)
       T_OCEAN:    return 12'h15A;  // blue
       T_GRASS:    return 12'h4A3;  // green
-      T_PLAINS:   return 12'hBB5;  // yellow-green
+      T_PLAINS:   return 12'hBB5;  // yellow green
       T_FOREST:   return 12'h262;  // dark green
       T_HILLS:    return 12'h864;  // brown
       T_MOUNTAIN: return 12'hAAA;  // grey
-      default:    return 12'hF0F;  // magenta: bad map data
+      default:    return 12'hF0F;  // broken map
     endcase
   endfunction
 
-  // Units can't enter ocean or mountains
+  // Unpassable tiles (ocean and mountain)
   function automatic logic is_walkable(input logic [TERRAIN_BITS-1:0] t);
     return (t != T_OCEAN) && (t != T_MOUNTAIN);
   endfunction
@@ -50,7 +50,7 @@ package game_pkg;
   localparam int MAP_LEFT = (1280 - (PLAY_TILES_X << TILE_BITS)) / 2;  // 128
   localparam int MAP_TOP = (800 - (PLAY_TILES_Y << TILE_BITS)) / 2;  // 80
 
-  // Players (1 bit): 0 = Player 1 (red), 1 = Player 2 (blue)
+  // Player colors
   function automatic logic [11:0] player_color(input logic p);
     return p ? 12'h26F : 12'hE22;
   endfunction
@@ -111,17 +111,15 @@ package game_pkg;
   // New unit with full HP and moves
   function automatic unit new_unit(input logic player_owner, input logic [1:0] unit_type,
                                    input logic [MAP_X_BITS-1:0] x, input logic [MAP_Y_BITS-1:0] y);
-    return
-    '{
-      in_use: 1'b1,
-      player_owner: player_owner,
-      unit_type: unit_type,
-      x: x,
-      y: y,
-      moves_left: moves_per_turn(unit_type),
-      hp: max_hp(unit_type)
-    }
-    ;
+    unit n;
+    n.in_use       = 1'b1;
+    n.player_owner = player_owner;
+    n.unit_type    = unit_type;
+    n.x            = x;
+    n.y            = y;
+    n.moves_left   = moves_per_turn(unit_type);
+    n.hp           = max_hp(unit_type);
+    return n;
   endfunction
 
   // Units at reset.
@@ -142,13 +140,13 @@ package game_pkg;
     input unit [MAX_UNITS-1:0] u, input logic [MAP_X_BITS-1:0] qx, input logic [MAP_Y_BITS-1:0] qy);
     logic [UNIT_INDEX_BITS:0] r;
     r = '0;
-    for (int i = MAX_UNITS - 1; i >= 0; i--)
-    if (u[i].in_use && u[i].x == qx && u[i].y == qy) r = {1'b1, UNIT_INDEX_BITS'(i)};
+    for (int i = MAX_UNITS - 1; i >= 0; i--) begin
+      if (u[i].in_use && u[i].x == qx && u[i].y == qy) r = {1'b1, UNIT_INDEX_BITS'(i)};
+    end
     return r;
   endfunction
 
-  // Next unit of 'player' in the table after slot 'last': returns {found, index}.
-  // slots and enemy units are skipped. The index is UNIT_INDEX_BITS wide, so
+  // Next unit of 'player' after slot 'last', wrapping around: returns {found, index}
   function automatic logic [UNIT_INDEX_BITS:0] find_next_own_unit(
     input unit [MAX_UNITS-1:0] u, input logic player, input logic [UNIT_INDEX_BITS-1:0] last);
     logic [  UNIT_INDEX_BITS:0] r;

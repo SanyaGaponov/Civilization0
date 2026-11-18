@@ -1,4 +1,3 @@
-// VGA controller: sync pulses, blanking, current pixel position.
 module vga_out (
   input  logic        clk,     // pixel clock, 83.46 MHz
   input  logic        rst,
