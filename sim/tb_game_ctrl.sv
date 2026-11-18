@@ -15,7 +15,7 @@ module tb_game_ctrl;
 
   // Design under test
   logic [NUM_BUTTONS-1:0]     press;
-  logic                       sw_jump;
+  logic                       jump;
   logic [MAP_ADDR_BITS-1:0]   target_terrain_addr;
   logic [TERRAIN_BITS-1:0]    target_terrain;
   logic [MAP_X_BITS-1:0]      cursor_x;
@@ -30,7 +30,7 @@ module tb_game_ctrl;
     .game_addr(target_terrain_addr), .game_data(target_terrain), .draw_addr('0), .draw_data());
   /* verilator lint_on PINCONNECTEMPTY */
 
-  game_ctrl dut (.clk(clk), .rst(rst), .press(press), .sw_jump(sw_jump),
+  game_ctrl dut (.clk(clk), .rst(rst), .press(press), .jump(jump),
                  .target_terrain_addr(target_terrain_addr), .target_terrain(target_terrain),
                  .cursor_x(cursor_x), .cursor_y(cursor_y), .current_player(current_player),
                  .unit_selected(unit_selected), .selected_unit(selected_unit),
@@ -230,11 +230,11 @@ module tb_game_ctrl;
     compare(step);
   endtask
 
-  // Flip SW0 (either direction) and check the result. The design needs two
-  // clocks to copy the switch into its own clock, so settle for a while.
+  // SW0 flipped: one jump pulse, as slide_switch sends it
   task automatic do_flip(int step);
-    @(negedge clk) sw_jump = ~sw_jump;
-    repeat (10) @(negedge clk);
+    @(negedge clk) jump = 1'b1;
+    @(negedge clk) jump = 1'b0;
+    repeat (8) @(negedge clk);
     model_flip();
     compare(step);
   endtask
@@ -441,7 +441,7 @@ module tb_game_ctrl;
 
   task automatic restart();
     rst = 1'b1;
-    sw_jump = 1'b0;                    // no flip while the design is in reset
+    jump = 1'b0;
     repeat (2) @(negedge clk);
     rst = 1'b0;
     model_reset();
@@ -451,7 +451,7 @@ module tb_game_ctrl;
   initial begin
     int b, r;
     press = '0;
-    sw_jump = 1'b0;
+    jump = 1'b0;
     errors = 0;
     rnd = 32'h1234_5678;
     $readmemh(MAP_FILE, map);

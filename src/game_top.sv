@@ -90,11 +90,15 @@ module game_top
   logic                       unit_selected;
   logic [UNIT_INDEX_BITS-1:0] selected_unit;
   unit   [MAX_UNITS-1:0]      unit_table;
+  // SW0: one pulse per flip
+  logic jump;
+  slide_switch u_sw0 (.clk(pixclk), .rst(rst), .switch_signal(SW[0]), .flipped(jump));
+
   game_ctrl u_game (
     .clk                (pixclk),
     .rst                (rst),
     .press              (press),
-    .sw_jump            (SW[0]),
+    .jump               (jump),
     .target_terrain_addr(target_terrain_addr),
     .target_terrain     (target_terrain),
     .cursor_x           (cursor_x),

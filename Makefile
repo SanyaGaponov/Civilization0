@@ -23,13 +23,14 @@ SRC := src/game_pkg.sv \
        src/video/drawcon.sv \
        src/video/sprite_memory.sv \
        src/io/button.sv \
+       src/io/slide_switch.sv \
        src/io/sevenseg.sv \
        src/io/multidigit.sv \
        src/game/terrain_memory.sv \
        src/game/game_ctrl.sv \
        src/game_top.sv
 
-.PHONY: all mem lint tb tb_vga_out tb_button tb_sevenseg tb_multidigit tb_game_ctrl sim bit program clean
+.PHONY: all mem lint tb tb_vga_out tb_button tb_slide_switch tb_sevenseg tb_multidigit tb_game_ctrl sim bit program clean
 
 all: mem lint tb sim
 
@@ -47,7 +48,7 @@ lint:
 
 TBFLAGS := --binary --timing --timescale 1ns/1ps -Wall
 
-tb: tb_vga_out tb_button tb_sevenseg tb_multidigit tb_game_ctrl
+tb: tb_vga_out tb_button tb_slide_switch tb_sevenseg tb_multidigit tb_game_ctrl
 
 tb_vga_out:
 	@mkdir -p $(BUILD)
@@ -60,6 +61,12 @@ tb_button:
 	$(VERILATOR) $(TBFLAGS) --top-module tb_button -Mdir $(BUILD)/tb_button -o tb \
 	    src/io/button.sv sim/tb_button.sv
 	$(BUILD)/tb_button/tb
+
+tb_slide_switch:
+	@mkdir -p $(BUILD)
+	$(VERILATOR) $(TBFLAGS) --top-module tb_slide_switch -Mdir $(BUILD)/tb_slide_switch -o tb \
+	    src/io/slide_switch.sv sim/tb_slide_switch.sv
+	$(BUILD)/tb_slide_switch/tb
 
 tb_sevenseg:
 	@mkdir -p $(BUILD)

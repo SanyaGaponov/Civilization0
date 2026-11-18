@@ -33,7 +33,8 @@ src/game_top.sv               top level: clock, reset, wiring, LEDs
 src/video/vga_out.sv          VGA timing and blanking
 src/video/drawcon.sv          pixel colour: terrain, sprites, HP bars, cursor
 src/video/sprite_memory.sv    sprite pixels, loaded from mem/sprites.mem
-src/io/button.sv              synchronize + debounce one button
+src/io/button.sv              debounce one button -> 1-clock press pulse
+src/io/slide_switch.sv        debounce one switch -> 1-clock pulse per flip
 src/io/sevenseg.sv            one digit: 4-bit value -> segment pattern
 src/io/multidigit.sv          drives the eight shared digits in turn
 src/game/terrain_memory.sv    terrain map, loaded from mem/map0.mem

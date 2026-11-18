@@ -31,6 +31,7 @@ read_verilog -sv [list \
   $root/src/video/drawcon.sv \
   $root/src/video/sprite_memory.sv \
   $root/src/io/button.sv \
+  $root/src/io/slide_switch.sv \
   $root/src/io/sevenseg.sv \
   $root/src/io/multidigit.sv \
   $root/src/game/terrain_memory.sv \
