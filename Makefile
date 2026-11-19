@@ -31,7 +31,7 @@ SRC := src/game_pkg.sv \
        src/game/game_ctrl.sv \
        src/game_top.sv
 
-.PHONY: all mem lint tb tb_button tb_game_ctrl sim bit program format clean
+.PHONY: all mem lint tb tb_game_ctrl sim bit program format clean
 
 all: mem lint tb sim
 
@@ -49,13 +49,7 @@ lint:
 
 TBFLAGS := --binary --timing --timescale 1ns/1ps -Wall
 
-tb: tb_button tb_game_ctrl
-
-tb_button:
-	@mkdir -p $(BUILD)
-	$(VERILATOR) $(TBFLAGS) --top-module tb_button -Mdir $(BUILD)/tb_button -o tb \
-	    src/io/button.sv sim/tb_button.sv
-	$(BUILD)/tb_button/tb
+tb: tb_game_ctrl
 
 tb_game_ctrl: mem
 	@mkdir -p $(BUILD)
@@ -66,12 +60,11 @@ tb_game_ctrl: mem
 
 sim: mem
 	@mkdir -p $(BUILD)
-	$(VERILATOR) --cc --exe --build -O2 -Wall --top-module sim_top \
-	    -Mdir $(BUILD)/sim -o sim_frame \
+	$(VERILATOR) $(TBFLAGS) -O2 --top-module tb_screen -Mdir $(BUILD)/tb_screen -o tb \
 	    -GMAP_FILE='"$(abspath mem/$(MAP).mem)"' \
 	    -GSPRITE_FILE='"$(abspath mem/sprites.mem)"' \
-	    $(SRC) sim/verilator/sim_top.sv $(abspath sim/verilator/sim_frame.cpp)
-	$(BUILD)/sim/sim_frame $(BUILD)/frame.ppm "$(KEYS)"
+	    $(SRC) sim/tb_screen.sv
+	$(BUILD)/tb_screen/tb +OUT=$(BUILD)/frame.ppm +KEYS=$(KEYS)
 	$(PYTHON) scripts/ppm2png.py $(BUILD)/frame.ppm $(BUILD)/frame.png
 
 bit: mem
@@ -88,7 +81,7 @@ FORMAT_FLAGS   := --indentation_spaces=2 --wrap_spaces=2 --column_limit=110 \
                   --formal_parameters_alignment=align --struct_union_members_alignment=align \
                   --case_items_alignment=align --enum_assignment_statement_alignment=align
 format:
-	$(VERIBLE_FORMAT) $(FORMAT_FLAGS) --inplace src/*.sv src/*/*.sv sim/*.sv sim/verilator/*.sv
+	$(VERIBLE_FORMAT) $(FORMAT_FLAGS) --inplace src/*.sv src/*/*.sv sim/*.sv
 
 clean:
 	rm -rf $(BUILD) .Xil obj_dir

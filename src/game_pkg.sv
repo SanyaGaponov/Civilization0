@@ -122,7 +122,7 @@ package game_pkg;
     return n;
   endfunction
 
-  // Units at reset.
+  // Units at reset
   function automatic unit initial_unit(input int i);
     case (i)
       0:       return new_unit(1'b0, U_SPEARMAN, CITY_P1_X + 5'd1, CITY_P1_Y);  // east of city
@@ -135,7 +135,7 @@ package game_pkg;
     endcase
   endfunction
 
-  // Unit on tile (qx, qy): returns {found, index}; lowest index wins
+  // unit on tile (qx, qy): returns {found, index}; lowest index wins
   function automatic logic [UNIT_INDEX_BITS:0] find_unit(
     input unit [MAX_UNITS-1:0] u, input logic [MAP_X_BITS-1:0] qx, input logic [MAP_Y_BITS-1:0] qy);
     logic [UNIT_INDEX_BITS:0] r;

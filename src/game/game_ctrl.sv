@@ -115,7 +115,7 @@ module game_ctrl
     end
   end
 
-  // States
+  // states
   always_ff @(posedge clk) begin
     if (rst) begin
       state          <= S_PLAY;
@@ -127,7 +127,7 @@ module game_ctrl
       cursor_y  <= P1_START_UNIT.y;
       last_jump <= UNIT_INDEX_BITS'(MAX_UNITS - 1);  // first flip starts at slot 0
     end else begin
-      // A flip made while a unit is selected is simply lost, not remembered.
+      // a flip made while a unit is selected is simply lost, not remembered.
       case (state)
         S_PLAY: begin
           if (!unit_selected) begin  // cursor mode

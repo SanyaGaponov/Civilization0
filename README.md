@@ -44,7 +44,7 @@ maps/map.txt                  the map as text
 sprites/                      unit and city sprites as text
 mem/                          generated memory files
 scripts/                      build, program, map and sprite generators
-sim/                          testbenches and the frame simulator
+sim/                          testbenches: game rules, screen (one frame)
 ```
 
 ## Simulate (Mac or Linux)
