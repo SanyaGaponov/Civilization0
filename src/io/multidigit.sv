@@ -1,15 +1,9 @@
-// Eight seven segment digits on one set of segment wires.
-//
-// The board wires a-g to all eight digits and picks the digit with the
-// (active low) anodes an[7:0], so only one digit can be lit at a time.
-// This module shows one digit per 'tick' and walks through all eight; at
-// roughly 600 ticks per second the eye sees all of them at once.
-// Digits are numbered from the right: dig0 is the rightmost one.
+
 module multidigit (
   input  logic       clk,
   input  logic       rst,
   input  logic       tick,  // step to the next digit
-  input  logic [3:0] dig0,  // rightmost digit
+  input  logic [3:0] dig0,  
   input  logic [3:0] dig1,
   input  logic [3:0] dig2,
   input  logic [3:0] dig3,
@@ -17,8 +11,8 @@ module multidigit (
   input  logic [3:0] dig5,
   input  logic [3:0] dig6,
   input  logic [3:0] dig7,
-  input  logic [7:0] en,    // 0 = leave that digit dark
-  output logic       a,     // segments a..g
+  input  logic [7:0] en,    
+  output logic       a,     
   output logic       b,
   output logic       c,
   output logic       d,
